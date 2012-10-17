@@ -1,0 +1,16 @@
+<html>
+	<body>
+		<form action="/admin/add" method="POST">
+			<fieldset>
+				<input type="text" name="mail" />
+				<input type="submit" value="Add" />
+			</fieldset>
+		</form>
+
+		{{range .}}
+		<h3>{{.Mail|html}}</h3>
+		<p><strong>Private key:</strong> {{.PrivateKey}}</p>
+		<p><a href="/admin/remove?mail={{.Mail | urlquery | html}}">Revoke</a></p>
+		{{end}}
+	</body>
+</html>
