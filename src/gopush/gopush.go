@@ -304,7 +304,7 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, lastState[id])
 }
 
-func init() {
+func StartService() {
 	var err error
 	config, err = readConfig("config.json")
 
@@ -325,6 +325,8 @@ func init() {
 	//http.HandleFunc("/subscribe", handleSubscribe)
 	//http.HandleFunc("/listen", handleListen)
 	http.HandleFunc("/ping", handlePing)
+
+	http.ListenAndServe(":8080", nil)
 }
 
 func readConfig(path string) (map[string]string, error) {
