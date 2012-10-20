@@ -81,10 +81,12 @@ func serve401(w http.ResponseWriter) {
 	io.WriteString(w, "Unauthorized")
 }
 
-func serveError(w http.ResponseWriter) {
+func serveError(w http.ResponseWriter, err error) {
 	w.WriteHeader(http.StatusInternalServerError)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	io.WriteString(w, "Internal Server Error")
+	io.WriteString(w, "\n")
+	io.WriteString(w, err.Error())
 }
 
 func handleAdmin(w http.ResponseWriter, r *http.Request) {
@@ -94,9 +96,9 @@ func handleAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c := getConnection()
-	rows, err := c.Query("SELECT * FROM APIToken ORDER BY Mail", nil)
+	rows, err := c.Query("SELECT * FROM APIToken ORDER BY Mail")
 	if err != nil {
-		serveError(w)
+		serveError(w, err)
 		return
 	}
 	var at []APIToken
@@ -106,12 +108,12 @@ func handleAdmin(w http.ResponseWriter, r *http.Request) {
 		at = append(at, a)
 	}
 	if err := rows.Err(); err != nil {
-		serveError(w)
+		serveError(w, err)
 		return
 	}
 
 	if err := adminPage.Execute(w, at); err != nil {
-		serveError(w)
+		serveError(w, err)
 		return
 	}
 }
@@ -123,13 +125,13 @@ func handleAdminAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := r.ParseForm(); err != nil {
-		serveError(w)
+		serveError(w, err)
 		return
 	}
 
 	key, errk := genKeyPair()
 	if errk != nil {
-		serveError(w)
+		serveError(w, errk)
 		return
 	}
 
@@ -141,7 +143,7 @@ func handleAdminAdd(w http.ResponseWriter, r *http.Request) {
 
 	c := getConnection()
 	if _, err := c.Exec("INSERT INTO APIToken(Mail, PrivateKey, Admin) VALUES(?,?,?)", t.Mail, t.PrivateKey, t.Admin); err != nil {
-		serveError(w)
+		serveError(w, err)
 		return
 	}
 
@@ -160,7 +162,7 @@ func handleAdminRemove(w http.ResponseWriter, r *http.Request) {
 
 	c := getConnection()
 	if _, err := c.Exec("DELETE FROM APIToken WHERE Mail = ?", mail); err != nil {
-		serveError(w)
+		serveError(w, err)
 		return
 	}
 
