@@ -1,5 +1,7 @@
 {
-  dbname: "gopush",
-  dbuser: "gopush",
-  dbpass: "gopush"
+  "dbname": "gopush",
+  "dbuser": "gopush",
+  "dbpass": "gopush",
+  "adminuser": "admin",
+  "adminpass": "admin"
 }
