@@ -96,7 +96,7 @@ func handleAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c := getConnection()
-	rows, err := c.Query("SELECT * FROM APIToken ORDER BY Mail")
+	rows, err := c.Query("SELECT Mail, PrivateKey, Admin FROM APIToken ORDER BY Mail")
 	if err != nil {
 		serveError(w, err)
 		return
@@ -104,7 +104,7 @@ func handleAdmin(w http.ResponseWriter, r *http.Request) {
 	var at []APIToken
 	for rows.Next() {
 		var a APIToken
-		rows.Scan(&a)
+		rows.Scan(&a.Mail, &a.PrivateKey, &a.Admin)
 		at = append(at, a)
 	}
 	if err := rows.Err(); err != nil {
@@ -171,13 +171,13 @@ func handleAdminRemove(w http.ResponseWriter, r *http.Request) {
 
 func getPrivateKeyForMailAddress(mail string) *rsa.PrivateKey {
 	c := getConnection()
-	row := c.QueryRow("SELECT * FROM APIToken WHERE Mail = ?", mail)
-	var at APIToken
-	if err := row.Scan(&at); err != nil {
+	row := c.QueryRow("SELECT PrivateKey FROM APIToken WHERE Mail = ?", mail)
+	var pkey string
+	if err := row.Scan(&pkey); err != nil {
 		return nil
 	}
 	
-	marshaled, _ := pem.Decode([]byte(at.PrivateKey))
+	marshaled, _ := pem.Decode([]byte(pkey))
 	prikey, err := x509.ParsePKCS1PrivateKey(marshaled.Bytes)
 	if err != nil {
 		return nil
