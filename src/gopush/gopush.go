@@ -6,7 +6,9 @@ import (
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/x509"
+	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"encoding/pem"
 	"io"
 	"io/ioutil"
@@ -14,12 +16,9 @@ import (
 	"net/url"
 	"text/template"
 
-	"appengine"
-	"appengine/datastore"
-	//"appengine/channel"
+	_ "code.google.com/p/go-mysql-driver/mysql"
+	//"code.google.com/p/go.net/websocket"
 )
-
-import _ "appengine/remote_api"
 
 var keySize = 1024
 
@@ -31,11 +30,28 @@ var adminPage = template.Must(template.ParseFiles("admin.html"))
 
 type APIToken struct {
 	Mail 		string
-	PrivateKey 	string `datastore:",noindex"`
+	PrivateKey 	string
 	Admin		bool
 }
 
 var lastState map[string]string
+
+var connection *sql.DB = nil
+
+var config map[string]string = nil
+
+func getConnection() *sql.DB {
+	if connection == nil {
+		var err error
+		connection, err = sql.Open("mysql",
+			config["dbuser"] + ":" + config["dbpass"] + "@/" + config["dbname"] + "?charset=utf-8")
+		if err != nil {
+			return nil
+		}
+	}
+
+	return connection
+}
 
 func genKeyPair() (string, error) {
 	prikey, err := rsa.GenerateKey(rand.Reader, keySize)
@@ -65,11 +81,10 @@ func serve401(w http.ResponseWriter) {
 	io.WriteString(w, "Unauthorized")
 }
 
-func serveError(c appengine.Context, w http.ResponseWriter, err error) {
+func serveError(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusInternalServerError)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	io.WriteString(w, "Internal Server Error")
-	c.Errorf("%v", err)
 }
 
 func handleAdmin(w http.ResponseWriter, r *http.Request) {
@@ -78,18 +93,26 @@ func handleAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := appengine.NewContext(r)
-
-	q := datastore.NewQuery("APIToken").Order("Mail")
-	var at []*APIToken
-	_, err := q.GetAll(c, &at)
+	c := getConnection()
+	rows, err := c.Query("SELECT * FROM APIToken ORDER BY Mail", nil)
 	if err != nil {
-		serveError(c, w, err)
+		serveError(w)
+		return
+	}
+	var at []APIToken
+	for rows.Next() {
+		var a APIToken
+		rows.Scan(&a)
+		at = append(at, a)
+	}
+	if err := rows.Err(); err != nil {
+		serveError(w)
 		return
 	}
 
 	if err := adminPage.Execute(w, at); err != nil {
-		c.Errorf("%v", err)
+		serveError(w)
+		return
 	}
 }
 
@@ -99,15 +122,14 @@ func handleAdminAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := appengine.NewContext(r)
 	if err := r.ParseForm(); err != nil {
-		serveError(c, w, err)
+		serveError(w)
 		return
 	}
 
 	key, errk := genKeyPair()
 	if errk != nil {
-		serveError(c, w, errk)
+		serveError(w)
 		return
 	}
 
@@ -117,8 +139,9 @@ func handleAdminAdd(w http.ResponseWriter, r *http.Request) {
 		Admin: false,
 	}
 
-	if _, err := datastore.Put(c, datastore.NewIncompleteKey(c, "APIToken", nil), t); err != nil {
-		serveError(c, w, err)
+	c := getConnection()
+	if _, err := c.Exec("INSERT INTO APIToken(Mail, PrivateKey, Admin) VALUES(?,?,?)", t.Mail, t.PrivateKey, t.Admin); err != nil {
+		serveError(w)
 		return
 	}
 
@@ -127,7 +150,6 @@ func handleAdminAdd(w http.ResponseWriter, r *http.Request) {
 
 func handleAdminRemove(w http.ResponseWriter, r *http.Request) {
 	v, _ := url.ParseQuery(r.URL.RawQuery)
-	c := appengine.NewContext(r)
 
 	mail := v.Get("mail")
 
@@ -136,28 +158,20 @@ func handleAdminRemove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := datastore.NewQuery("APIToken").Filter("Mail = ", mail)
-	t := q.Run(c)
-	var at APIToken
-	key, err := t.Next(&at)
-	if err != nil {
-		serveError(c, w, err)
-		return
-	}
-
-	if err := datastore.Delete(c, key); err != nil {
-		serveError(c, w, err)
+	c := getConnection()
+	if _, err := c.Exec("DELETE FROM APIToken WHERE Mail = ?", mail); err != nil {
+		serveError(w)
 		return
 	}
 
 	http.Redirect(w, r, "/admin", http.StatusFound)
 }
 
-func getPrivateKeyForMailAddress(c appengine.Context, mail string) *rsa.PrivateKey {
-	q := datastore.NewQuery("APIToken").Filter("Mail =", mail)
-	t := q.Run(c)
+func getPrivateKeyForMailAddress(mail string) *rsa.PrivateKey {
+	c := getConnection()
+	row := c.QueryRow("SELECT * FROM APIToken WHERE Mail = ?", mail)
 	var at APIToken
-	if _, err := t.Next(&at); err != nil {
+	if err := row.Scan(&at); err != nil {
 		return nil
 	}
 	
@@ -173,8 +187,6 @@ func getPrivateKeyForMailAddress(c appengine.Context, mail string) *rsa.PrivateK
 }
 
 func checkAuth(r *http.Request, body []byte) bool {
-	c := appengine.NewContext(r)
-
 	v, _ := url.ParseQuery(r.URL.RawQuery)
 	mail := v.Get("mail")
 	if mail == "" {
@@ -193,7 +205,7 @@ func checkAuth(r *http.Request, body []byte) bool {
 
 	sig, _ := hex.DecodeString(signature)
 
-	prikey := getPrivateKeyForMailAddress(c, mail)
+	prikey := getPrivateKeyForMailAddress(mail)
 
 	err := rsa.VerifyPKCS1v15(&prikey.PublicKey, crypto.SHA1, digest, sig)
 
@@ -293,6 +305,13 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 }
 
 func init() {
+	var err error
+	config, err = readConfig("config.json")
+
+	if err != nil {
+		panic(err)
+	}
+
 	notifications = make(map[string][]chan string)
 	http.HandleFunc("/admin", handleAdmin)
 	http.HandleFunc("/admin/add", handleAdminAdd)
@@ -306,4 +325,21 @@ func init() {
 	//http.HandleFunc("/subscribe", handleSubscribe)
 	//http.HandleFunc("/listen", handleListen)
 	http.HandleFunc("/ping", handlePing)
+}
+
+func readConfig(path string) (map[string]string, error) {
+	content, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var conf map[string]string
+
+	jerr := json.Unmarshal(content, &conf)
+
+	if jerr != nil {
+		return nil, jerr
+	}
+
+	return conf, nil
 }

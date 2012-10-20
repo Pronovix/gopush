@@ -1,0 +1,5 @@
+{
+  dbname: "gopush",
+  dbuser: "gopush",
+  dbpass: "gopush"
+}
