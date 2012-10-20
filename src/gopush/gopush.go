@@ -44,7 +44,7 @@ func getConnection() *sql.DB {
 	if connection == nil {
 		var err error
 		connection, err = sql.Open("mysql",
-			config["dbuser"] + ":" + config["dbpass"] + "@/" + config["dbname"] + "?charset=utf-8")
+			config["dbuser"] + ":" + config["dbpass"] + "@/" + config["dbname"] + "?charset=utf8")
 		if err != nil {
 			return nil
 		}
