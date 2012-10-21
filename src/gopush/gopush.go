@@ -7,6 +7,7 @@ import (
 	"crypto/sha1"
 	"crypto/x509"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
@@ -40,6 +41,8 @@ var connection *sql.DB = nil
 
 var config map[string]string = nil
 
+var adminCreds = ""
+
 func getConnection() *sql.DB {
 	if connection == nil {
 		var err error
@@ -70,20 +73,20 @@ func genKeyPair() (string, error) {
 }
 
 func serve404(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusNotFound)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusNotFound)
 	io.WriteString(w, "Not Found")
 }
 
 func serve401(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusUnauthorized)
 	w.Header().Set("Content-Type", "text/plain; chatset=utf-8")
+	w.WriteHeader(http.StatusUnauthorized)
 	io.WriteString(w, "Unauthorized")
 }
 
 func serveError(w http.ResponseWriter, err error) {
-	w.WriteHeader(http.StatusInternalServerError)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusInternalServerError)
 	io.WriteString(w, "Internal Server Error")
 	io.WriteString(w, "\n")
 	io.WriteString(w, err.Error())
@@ -92,6 +95,10 @@ func serveError(w http.ResponseWriter, err error) {
 func handleAdmin(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		serve404(w)
+		return
+	}
+
+	if !checkAdminAuth(w, r) {
 		return
 	}
 
@@ -124,6 +131,10 @@ func handleAdminAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !checkAdminAuth(w, r) {
+		return
+	}
+
 	if err := r.ParseForm(); err != nil {
 		serveError(w, err)
 		return
@@ -151,6 +162,10 @@ func handleAdminAdd(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAdminRemove(w http.ResponseWriter, r *http.Request) {
+	if !checkAdminAuth(w, r) {
+		return
+	}
+
 	v, _ := url.ParseQuery(r.URL.RawQuery)
 
 	mail := v.Get("mail")
@@ -214,6 +229,20 @@ func checkAuth(r *http.Request, body []byte) bool {
 	return err == nil
 }
 
+func prepareAdminCreds() {
+	adminCreds = base64.StdEncoding.EncodeToString([]byte(config["adminuser"] + ":" + config["adminpass"]))
+}
+
+func checkAdminAuth(w http.ResponseWriter, r *http.Request) bool {
+	if auth := r.Header.Get("Authorization"); auth != "Basic " + adminCreds {
+		w.Header().Set("WWW-Authenticate", "Basic realm=\"GoPushNotification admin page\"")
+		w.WriteHeader(http.StatusUnauthorized)
+		return false
+	}
+
+	return true
+}
+
 func handleNewCenter(w http.ResponseWriter, r *http.Request) {
 	body, _ := ioutil.ReadAll(r.Body)
 	if !checkAuth(r, body) {
@@ -228,8 +257,8 @@ func handleNewCenter(w http.ResponseWriter, r *http.Request) {
 
 	lastState[mail + "____" + newcenter] = ""
 
-	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusCreated)
 	io.WriteString(w, "Created")
 }
 
@@ -301,8 +330,8 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, lastState[id])
 }
 
@@ -313,6 +342,8 @@ func StartService() {
 	if err != nil {
 		panic(err)
 	}
+
+	prepareAdminCreds()
 
 	notifications = make(map[string][]chan string)
 	http.HandleFunc("/admin", handleAdmin)
