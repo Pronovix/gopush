@@ -9,7 +9,7 @@
 
 		{{range .}}
 		<h3>{{.Mail|html}}</h3>
-		<p><strong>Private key:</strong> {{.PrivateKey}}</p>
+		<p><strong>Private key:</strong> <br /> <pre>{{.PrivateKey}}</pre></p>
 		<p><a href="/admin/remove?mail={{.Mail | urlquery | html}}">Revoke</a></p>
 		{{end}}
 	</body>
