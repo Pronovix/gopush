@@ -13,14 +13,14 @@ func (svc *GoPushService) handlePing(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v, _ := url.ParseQuery(r.URL.RawQuery)
-	id := v.Get("id")
+	center := v.Get("center")
 
-	if _, ok := svc.lastState[id]; id == "" || !ok {
+	if _, ok := svc.lastState[center]; center == "" || !ok {
 		serve404(w)
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	io.WriteString(w, svc.lastState[id])
+	io.WriteString(w, svc.lastState[center])
 }
