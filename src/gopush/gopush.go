@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"text/template"
 
-	//"code.google.com/p/go.net/websocket"
+	"code.google.com/p/go.net/websocket"
 )
 
 type GoPushService struct {
@@ -17,9 +17,10 @@ type GoPushService struct {
 	config 		map[string]string
 	adminCreds 	string
 	server 		*http.Server
+	hub 		*wshub
 }
 
-func NewService(configName string) *GoPushService {
+func NewService(configName string, allowincoming bool) *GoPushService {
 	mux := http.NewServeMux()
 
 	instance := &GoPushService{
@@ -32,6 +33,7 @@ func NewService(configName string) *GoPushService {
 		server: &http.Server{
 				Handler: mux,
 			},
+		hub: newWSHub(),
 	}
 
 	config, err := readConfig(configName)
@@ -50,10 +52,9 @@ func NewService(configName string) *GoPushService {
 	mux.HandleFunc("/notify", func (w http.ResponseWriter, r *http.Request) { instance.handleNotify(w, r) })
 	mux.HandleFunc("/removecenter", func (w http.ResponseWriter, r *http.Request) { instance.handleRemoveCenter(w, r) })
 
-	// TODO add channel API
-	//mux.HandleFunc("/subscribe", func (w http.ResponseWriter, r *http.Request) { instance.handleSubscribe(w, r) })
-	//mux.HandleFunc("/listen", func (w http.ResponseWriter, r *http.Request) { instance.handleListen(w, r) })
 	mux.HandleFunc("/ping", func (w http.ResponseWriter, r *http.Request) { instance.handlePing(w, r) })
+
+	mux.Handle("/listen", websocket.Handler(func (conn *websocket.Conn) { wsHandler(conn, instance.hub, allowincoming) }))
 
 	return instance
 }

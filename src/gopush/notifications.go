@@ -81,6 +81,8 @@ func (svc *GoPushService) handleNotify(w http.ResponseWriter, r *http.Request) {
 
 	svc.lastState[centername] = newmessage
 
+	go func() { svc.hub.broadcast <- newmessage }()
+
 	w.WriteHeader(http.StatusOK)
 }
 

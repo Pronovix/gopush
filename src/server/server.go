@@ -3,5 +3,5 @@ package main
 import "gopush"
 
 func main() {
-	gopush.NewService("config.json").Start(":8080")
+	gopush.NewService("config.json", false).Start(":8080")
 }
