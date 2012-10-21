@@ -21,11 +21,54 @@ import (
 	//"code.google.com/p/go.net/websocket"
 )
 
-var keySize = 1024
+type GoPushService struct {
+	keySize 	int
+	authName 	string
+	lastState 	map[string]string
+	connection 	*sql.DB
+	config 		map[string]string
+	adminCreds 	string
+	server 		*http.Server
+}
 
-var authName = "GoPush "
+func NewService(configName string) *GoPushService {
+	mux := http.NewServeMux()
 
-var notifications map[string][]chan string
+	instance := &GoPushService{
+		keySize: 1024,
+		authName: "GoPush ",
+		lastState: make(map[string]string),
+		connection: nil,
+		config: make(map[string]string),
+		adminCreds: "",
+		server: &http.Server{
+				Handler: mux,
+			},
+	}
+
+	config, err := readConfig(configName)
+	if err != nil {
+		panic(err)
+	}
+	instance.config = config
+
+	instance.adminCreds = base64.StdEncoding.EncodeToString([]byte(config["adminuser"] + ":" + config["adminpass"]))
+
+	mux.HandleFunc("/admin", func (w http.ResponseWriter, r *http.Request) { instance.handleAdmin(w, r) })
+	mux.HandleFunc("/admin/add", func (w http.ResponseWriter, r *http.Request) { instance.handleAdminAdd(w, r) })
+	mux.HandleFunc("/admin/remove", func (w http.ResponseWriter, r *http.Request) { instance.handleAdminRemove(w, r) })
+
+	mux.HandleFunc("/newcenter", func (w http.ResponseWriter, r *http.Request) { instance.handleNewCenter(w, r) })
+	mux.HandleFunc("/notify", func (w http.ResponseWriter, r *http.Request) { instance.handleNotify(w, r) })
+	mux.HandleFunc("/removecenter", func (w http.ResponseWriter, r *http.Request) { instance.handleRemoveCenter(w, r) })
+
+	// TODO add channel API
+	//mux.HandleFunc("/subscribe", func (w http.ResponseWriter, r *http.Request) { instance.handleSubscribe(w, r) })
+	//mux.HandleFunc("/listen", func (w http.ResponseWriter, r *http.Request) { instance.handleListen(w, r) })
+	mux.HandleFunc("/ping", func (w http.ResponseWriter, r *http.Request) { instance.handlePing(w, r) })
+
+	return instance
+}
 
 var adminPage = template.Must(template.ParseFiles("admin.html"))
 
@@ -35,29 +78,21 @@ type APIToken struct {
 	Admin		bool
 }
 
-var lastState map[string]string
-
-var connection *sql.DB = nil
-
-var config map[string]string = nil
-
-var adminCreds = ""
-
-func getConnection() *sql.DB {
-	if connection == nil {
+func (svc *GoPushService) getConnection() *sql.DB {
+	if svc.connection == nil {
 		var err error
-		connection, err = sql.Open("mysql",
-			config["dbuser"] + ":" + config["dbpass"] + "@/" + config["dbname"] + "?charset=utf8")
+		svc.connection, err = sql.Open("mysql",
+			svc.config["dbuser"] + ":" + svc.config["dbpass"] + "@/" + svc.config["dbname"] + "?charset=utf8")
 		if err != nil {
 			return nil
 		}
 	}
 
-	return connection
+	return svc.connection
 }
 
-func genKeyPair() (string, error) {
-	prikey, err := rsa.GenerateKey(rand.Reader, keySize)
+func (svc *GoPushService) genKeyPair() (string, error) {
+	prikey, err := rsa.GenerateKey(rand.Reader, svc.keySize)
 	if err != nil {
 		return "", err
 	}
@@ -92,17 +127,17 @@ func serveError(w http.ResponseWriter, err error) {
 	io.WriteString(w, err.Error())
 }
 
-func handleAdmin(w http.ResponseWriter, r *http.Request) {
+func (svc *GoPushService) handleAdmin(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		serve404(w)
 		return
 	}
 
-	if !checkAdminAuth(w, r) {
+	if !svc.checkAdminAuth(w, r) {
 		return
 	}
 
-	c := getConnection()
+	c := svc.getConnection()
 	rows, err := c.Query("SELECT Mail, PrivateKey, Admin FROM APIToken ORDER BY Mail")
 	if err != nil {
 		serveError(w, err)
@@ -125,13 +160,13 @@ func handleAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleAdminAdd(w http.ResponseWriter, r *http.Request) {
+func (svc *GoPushService) handleAdminAdd(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		serve404(w)
 		return
 	}
 
-	if !checkAdminAuth(w, r) {
+	if !svc.checkAdminAuth(w, r) {
 		return
 	}
 
@@ -140,7 +175,7 @@ func handleAdminAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key, errk := genKeyPair()
+	key, errk := svc.genKeyPair()
 	if errk != nil {
 		serveError(w, errk)
 		return
@@ -152,7 +187,7 @@ func handleAdminAdd(w http.ResponseWriter, r *http.Request) {
 		Admin: false,
 	}
 
-	c := getConnection()
+	c := svc.getConnection()
 	if _, err := c.Exec("INSERT INTO APIToken(Mail, PrivateKey, Admin) VALUES(?,?,?)", t.Mail, t.PrivateKey, t.Admin); err != nil {
 		serveError(w, err)
 		return
@@ -161,8 +196,8 @@ func handleAdminAdd(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin", http.StatusFound)
 }
 
-func handleAdminRemove(w http.ResponseWriter, r *http.Request) {
-	if !checkAdminAuth(w, r) {
+func (svc *GoPushService) handleAdminRemove(w http.ResponseWriter, r *http.Request) {
+	if !svc.checkAdminAuth(w, r) {
 		return
 	}
 
@@ -175,7 +210,7 @@ func handleAdminRemove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := getConnection()
+	c := svc.getConnection()
 	if _, err := c.Exec("DELETE FROM APIToken WHERE Mail = ?", mail); err != nil {
 		serveError(w, err)
 		return
@@ -184,8 +219,8 @@ func handleAdminRemove(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin", http.StatusFound)
 }
 
-func getPrivateKeyForMailAddress(mail string) *rsa.PrivateKey {
-	c := getConnection()
+func (svc *GoPushService) getPrivateKeyForMailAddress(mail string) *rsa.PrivateKey {
+	c := svc.getConnection()
 	row := c.QueryRow("SELECT PrivateKey FROM APIToken WHERE Mail = ?", mail)
 	var pkey string
 	if err := row.Scan(&pkey); err != nil {
@@ -203,7 +238,7 @@ func getPrivateKeyForMailAddress(mail string) *rsa.PrivateKey {
 	return prikey
 }
 
-func checkAuth(r *http.Request, body []byte) bool {
+func (svc *GoPushService) checkAuth(r *http.Request, body []byte) bool {
 	v, _ := url.ParseQuery(r.URL.RawQuery)
 	mail := v.Get("mail")
 	if mail == "" {
@@ -211,10 +246,10 @@ func checkAuth(r *http.Request, body []byte) bool {
 	}
 
 	authheader := r.Header.Get("Authorization")
-	if authheader[0:len(authName)] != authName {
+	if authheader[0:len(svc.authName)] != svc.authName {
 		return false
 	}
-	signature := authheader[len(authName):]
+	signature := authheader[len(svc.authName):]
 
 	h := sha1.New()
 	h.Write(body)
@@ -222,19 +257,15 @@ func checkAuth(r *http.Request, body []byte) bool {
 
 	sig, _ := hex.DecodeString(signature)
 
-	prikey := getPrivateKeyForMailAddress(mail)
+	prikey := svc.getPrivateKeyForMailAddress(mail)
 
 	err := rsa.VerifyPKCS1v15(&prikey.PublicKey, crypto.SHA1, digest, sig)
 
 	return err == nil
 }
 
-func prepareAdminCreds() {
-	adminCreds = base64.StdEncoding.EncodeToString([]byte(config["adminuser"] + ":" + config["adminpass"]))
-}
-
-func checkAdminAuth(w http.ResponseWriter, r *http.Request) bool {
-	if auth := r.Header.Get("Authorization"); auth != "Basic " + adminCreds {
+func (svc *GoPushService) checkAdminAuth(w http.ResponseWriter, r *http.Request) bool {
+	if auth := r.Header.Get("Authorization"); auth != "Basic " + svc.adminCreds {
 		w.Header().Set("WWW-Authenticate", "Basic realm=\"GoPushNotification admin page\"")
 		w.WriteHeader(http.StatusUnauthorized)
 		return false
@@ -243,9 +274,9 @@ func checkAdminAuth(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
-func handleNewCenter(w http.ResponseWriter, r *http.Request) {
+func (svc *GoPushService) handleNewCenter(w http.ResponseWriter, r *http.Request) {
 	body, _ := ioutil.ReadAll(r.Body)
-	if !checkAuth(r, body) {
+	if !svc.checkAuth(r, body) {
 		serve401(w)
 		return
 	}
@@ -255,21 +286,21 @@ func handleNewCenter(w http.ResponseWriter, r *http.Request) {
 
 	newcenter := string(body)
 
-	lastState[mail + "____" + newcenter] = ""
+	svc.lastState[mail + "____" + newcenter] = ""
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusCreated)
 	io.WriteString(w, "Created")
 }
 
-func handleNotify(w http.ResponseWriter, r *http.Request) {
+func (svc *GoPushService) handleNotify(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		serve404(w)
 		return
 	}
 
 	body, _ := ioutil.ReadAll(r.Body)
-	if !checkAuth(r, body) {
+	if !svc.checkAuth(r, body) {
 		serve401(w)
 		return
 	}
@@ -278,26 +309,26 @@ func handleNotify(w http.ResponseWriter, r *http.Request) {
 	mail := v.Get("mail")
 	center := v.Get("center")
 	centername := mail + "____" + center
-	if _, ok := lastState[centername]; !ok {
+	if _, ok := svc.lastState[centername]; !ok {
 		serve404(w)
 		return
 	}
 
 	newmessage := string(body)
 
-	lastState[centername] = newmessage
+	svc.lastState[centername] = newmessage
 
 	w.WriteHeader(http.StatusOK)
 }
 
-func handleRemoveCenter(w http.ResponseWriter, r *http.Request) {
+func (svc *GoPushService) handleRemoveCenter(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		serve404(w)
 		return
 	}
 
 	body, _ := ioutil.ReadAll(r.Body)
-	if !checkAuth(r, body) {
+	if !svc.checkAuth(r, body) {
 		serve401(w)
 		return
 	}
@@ -306,17 +337,17 @@ func handleRemoveCenter(w http.ResponseWriter, r *http.Request) {
 	mail := v.Get("mail")
 	center := v.Get("center")
 	centername := mail + "____" + center
-	if _, ok := lastState[centername]; !ok {
+	if _, ok := svc.lastState[centername]; !ok {
 		serve404(w)
 		return
 	}
 
-	delete(lastState, centername)
+	delete(svc.lastState, centername)
 
 	w.WriteHeader(http.StatusOK)
 }
 
-func handlePing(w http.ResponseWriter, r *http.Request) {
+func (svc *GoPushService) handlePing(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		serve404(w)
 		return
@@ -325,41 +356,19 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 	v, _ := url.ParseQuery(r.URL.RawQuery)
 	id := v.Get("id")
 
-	if _, ok := lastState[id]; id == "" || !ok {
+	if _, ok := svc.lastState[id]; id == "" || !ok {
 		serve404(w)
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	io.WriteString(w, lastState[id])
+	io.WriteString(w, svc.lastState[id])
 }
 
-func StartService() {
-	var err error
-	config, err = readConfig("config.json")
-
-	if err != nil {
-		panic(err)
-	}
-
-	prepareAdminCreds()
-
-	notifications = make(map[string][]chan string)
-	http.HandleFunc("/admin", handleAdmin)
-	http.HandleFunc("/admin/add", handleAdminAdd)
-	http.HandleFunc("/admin/remove", handleAdminRemove)
-
-	http.HandleFunc("/newcenter", handleNewCenter)
-	http.HandleFunc("/notify", handleNotify)
-	http.HandleFunc("/removecenter", handleRemoveCenter)
-
-	// TODO add channel API
-	//http.HandleFunc("/subscribe", handleSubscribe)
-	//http.HandleFunc("/listen", handleListen)
-	http.HandleFunc("/ping", handlePing)
-
-	http.ListenAndServe(":8080", nil)
+func (svc *GoPushService) Start(addr string) {
+	svc.server.Addr = addr
+	svc.server.ListenAndServe()
 }
 
 func readConfig(path string) (map[string]string, error) {
