@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"io"
 	"io/ioutil"
+
+	"log"
 )
 
 func (svc *GoPushService) checkAuth(r *http.Request, body []byte) bool {
@@ -38,6 +40,11 @@ func (svc *GoPushService) checkAuth(r *http.Request, body []byte) bool {
 }
 
 func (svc *GoPushService) handleNewCenter(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		serve404(w)
+		return
+	}
+
 	body, _ := ioutil.ReadAll(r.Body)
 	if !svc.checkAuth(r, body) {
 		serve401(w)
@@ -49,11 +56,17 @@ func (svc *GoPushService) handleNewCenter(w http.ResponseWriter, r *http.Request
 
 	newcenter := string(body)
 
-	svc.lastState[mail + "____" + newcenter] = ""
+	centername := mail + "____" + newcenter
+
+	svc.lastState[centername] = ""
+	svc.hubs[centername] = newWSHub()
+	go svc.hubs[centername].run()
+
+	log.Printf("Created new notification center: %s\n", centername)
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusCreated)
-	io.WriteString(w, "Created")
+	io.WriteString(w, centername)
 }
 
 func (svc *GoPushService) handleNotify(w http.ResponseWriter, r *http.Request) {
@@ -79,9 +92,11 @@ func (svc *GoPushService) handleNotify(w http.ResponseWriter, r *http.Request) {
 
 	newmessage := string(body)
 
+	log.Printf("Sent notification to %s: %s\n", centername, newmessage)
+
 	svc.lastState[centername] = newmessage
 
-	go func() { svc.hub.broadcast <- newmessage }()
+	go func() { svc.hubs[centername].broadcast <- newmessage }()
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -107,7 +122,11 @@ func (svc *GoPushService) handleRemoveCenter(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	log.Printf("Removed notification center: %s\n", centername)
+
 	delete(svc.lastState, centername)
+
+	svc.hubs[centername].quit <- true
 
 	w.WriteHeader(http.StatusOK)
 }

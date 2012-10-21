@@ -4,9 +4,12 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"net/http"
+	"net/url"
 	"text/template"
 
 	"code.google.com/p/go.net/websocket"
+
+	"log"
 )
 
 type GoPushService struct {
@@ -17,7 +20,7 @@ type GoPushService struct {
 	config 		map[string]string
 	adminCreds 	string
 	server 		*http.Server
-	hub 		*wshub
+	hubs 		map[string]*wshub
 }
 
 func NewService(configName string, allowincoming bool) *GoPushService {
@@ -33,7 +36,7 @@ func NewService(configName string, allowincoming bool) *GoPushService {
 		server: &http.Server{
 				Handler: mux,
 			},
-		hub: newWSHub(),
+		hubs: make(map[string]*wshub),
 	}
 
 	config, err := readConfig(configName)
@@ -54,7 +57,17 @@ func NewService(configName string, allowincoming bool) *GoPushService {
 
 	mux.HandleFunc("/ping", func (w http.ResponseWriter, r *http.Request) { instance.handlePing(w, r) })
 
-	mux.Handle("/listen", websocket.Handler(func (conn *websocket.Conn) { wsHandler(conn, instance.hub, allowincoming) }))
+	mux.Handle("/listen", websocket.Handler(func (conn *websocket.Conn) {
+		v, _ := url.ParseQuery(conn.Request().URL.RawQuery)
+		center := v.Get("center")
+		if hub, ok := instance.hubs[center]; ok {
+			log.Println("Accepted WS request")
+			wsHandler(conn, hub, allowincoming)
+		} else {
+			log.Println("Rejected WS request")
+			conn.Close() // TODO figure out if it's possible to send an error message to the client
+		}
+	}))
 
 	return instance
 }
