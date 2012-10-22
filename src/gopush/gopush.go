@@ -73,11 +73,12 @@ func NewService(configName string, allowincoming bool) *GoPushService {
 }
 
 var adminPage = template.Must(template.ParseFiles("admin.html"))
+var adminAddGenPriKeyPage = template.Must(template.ParseFiles("adminaddgenprikey.html"))
 
 // TODO refactor the SQL queries related to this structure into nice methods
 type APIToken struct {
 	Mail 		string
-	PrivateKey 	string
+	PublicKey 	string
 	Admin		bool
 }
 

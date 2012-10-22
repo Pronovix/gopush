@@ -32,9 +32,9 @@ func (svc *GoPushService) checkAuth(r *http.Request, body []byte) bool {
 
 	sig, _ := hex.DecodeString(signature)
 
-	prikey := svc.getPrivateKeyForMailAddress(mail)
+	pubkey := svc.getPublicKeyForMailAddress(mail)
 
-	err := rsa.VerifyPKCS1v15(&prikey.PublicKey, crypto.SHA1, digest, sig)
+	err := rsa.VerifyPKCS1v15(pubkey, crypto.SHA1, digest, sig)
 
 	return err == nil
 }

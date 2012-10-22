@@ -22,21 +22,21 @@ func (svc *GoPushService) getConnection() *sql.DB {
 	return svc.connection
 }
 
-func (svc *GoPushService) getPrivateKeyForMailAddress(mail string) *rsa.PrivateKey {
+func (svc *GoPushService) getPublicKeyForMailAddress(mail string) *rsa.PublicKey {
 	c := svc.getConnection()
-	row := c.QueryRow("SELECT PrivateKey FROM APIToken WHERE Mail = ?", mail)
+	row := c.QueryRow("SELECT PublicKey FROM APIToken WHERE Mail = ?", mail)
 	var pkey string
 	if err := row.Scan(&pkey); err != nil {
 		return nil
 	}
 	
 	marshaled, _ := pem.Decode([]byte(pkey))
-	prikey, err := x509.ParsePKCS1PrivateKey(marshaled.Bytes)
+	pubkey, err := x509.ParsePKIXPublicKey(marshaled.Bytes)
 	if err != nil {
 		return nil
 	}
 
 	// TODO cache
 
-	return prikey
+	return pubkey.(*rsa.PublicKey)
 }

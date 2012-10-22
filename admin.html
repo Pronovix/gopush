@@ -2,14 +2,18 @@
 	<body>
 		<form action="/admin/add" method="POST">
 			<fieldset>
-				<input type="text" name="mail" />
+				<p><strong>Mail:</strong> <input type="text" name="mail" /></p>
+				<p>
+					<strong>Public Key:</strong> <small>(If you leave this empty, a key will be generated for you, but the private part won't be stored.)</small><br />
+					<textarea name="publickey"></textarea>
+				</p>
 				<input type="submit" value="Add" />
 			</fieldset>
 		</form>
 
 		{{range .}}
 		<h3>{{.Mail|html}}</h3>
-		<p><strong>Private key:</strong> <br /> <pre>{{.PrivateKey}}</pre></p>
+		<p><strong>Public key:</strong> <br /> <pre>{{.PublicKey}}</pre></p>
 		<p><a href="/admin/remove?mail={{.Mail | urlquery | html}}">Revoke</a></p>
 		{{end}}
 	</body>

@@ -5,6 +5,11 @@ import (
 	"net/url"
 )
 
+type adminAdd struct {
+	Mail 	string
+	Key 	string
+}
+
 func (svc *GoPushService) checkAdminAuth(w http.ResponseWriter, r *http.Request) bool {
 	if auth := r.Header.Get("Authorization"); auth != "Basic " + svc.adminCreds {
 		w.Header().Set("WWW-Authenticate", "Basic realm=\"GoPushNotification admin page\"")
@@ -26,7 +31,7 @@ func (svc *GoPushService) handleAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c := svc.getConnection()
-	rows, err := c.Query("SELECT Mail, PrivateKey, Admin FROM APIToken ORDER BY Mail")
+	rows, err := c.Query("SELECT Mail, PublicKey, Admin FROM APIToken ORDER BY Mail")
 	if err != nil {
 		serveError(w, err)
 		return
@@ -34,7 +39,7 @@ func (svc *GoPushService) handleAdmin(w http.ResponseWriter, r *http.Request) {
 	var at []APIToken
 	for rows.Next() {
 		var a APIToken
-		rows.Scan(&a.Mail, &a.PrivateKey, &a.Admin)
+		rows.Scan(&a.Mail, &a.PublicKey, &a.Admin)
 		at = append(at, a)
 	}
 	if err := rows.Err(); err != nil {
@@ -63,25 +68,39 @@ func (svc *GoPushService) handleAdminAdd(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	key, errk := svc.genKeyPair()
-	if errk != nil {
-		serveError(w, errk)
-		return
+	publicKey := r.FormValue("publickey")
+	privateKey := ""
+	var errk error
+
+	if publicKey == "" {
+		privateKey, publicKey, errk = svc.genKeyPair()
+		if errk != nil {
+			serveError(w, errk)
+			return
+		}
 	}
 
 	t := &APIToken{
 		Mail: r.FormValue("mail"),
-		PrivateKey: key,
+		PublicKey: publicKey,
 		Admin: false,
 	}
 
 	c := svc.getConnection()
-	if _, err := c.Exec("INSERT INTO APIToken(Mail, PrivateKey, Admin) VALUES(?,?,?)", t.Mail, t.PrivateKey, t.Admin); err != nil {
+	if _, err := c.Exec("INSERT INTO APIToken(Mail, PublicKey, Admin) VALUES(?,?,?)", t.Mail, t.PublicKey, t.Admin); err != nil {
 		serveError(w, err)
 		return
 	}
 
-	http.Redirect(w, r, "/admin", http.StatusFound)
+	if privateKey == "" {
+		http.Redirect(w, r, "/admin", http.StatusFound)
+	} else {
+		data := &adminAdd{
+			Mail: r.FormValue("mail"),
+			Key: privateKey,
+		}
+		adminAddGenPriKeyPage.Execute(w, data)
+	}
 }
 
 func (svc *GoPushService) handleAdminRemove(w http.ResponseWriter, r *http.Request) {
