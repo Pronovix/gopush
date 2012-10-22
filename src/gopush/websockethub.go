@@ -43,6 +43,7 @@ func (h *wshub) run() {
 			}
 		case q := <-h.quit:
 			if q {
+				log.Println("Closing connections")
 				for c := range h.connections {
 					c.quit()
 				}

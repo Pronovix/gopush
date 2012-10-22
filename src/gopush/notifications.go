@@ -115,7 +115,7 @@ func (svc *GoPushService) handleRemoveCenter(w http.ResponseWriter, r *http.Requ
 
 	v, _ := url.ParseQuery(r.URL.RawQuery)
 	mail := v.Get("mail")
-	center := v.Get("center")
+	center := string(body)
 	centername := mail + "____" + center
 	if _, ok := svc.lastState[centername]; !ok {
 		serve404(w)
@@ -127,6 +127,8 @@ func (svc *GoPushService) handleRemoveCenter(w http.ResponseWriter, r *http.Requ
 	delete(svc.lastState, centername)
 
 	svc.hubs[centername].quit <- true
+
+	delete(svc.hubs, centername)
 
 	w.WriteHeader(http.StatusOK)
 }
