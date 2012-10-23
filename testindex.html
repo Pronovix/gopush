@@ -18,7 +18,7 @@
     }
 
     if (window["WebSocket"]) {
-        conn = new WebSocket("ws://{{.Address}}" + window.location.search);
+        conn = new WebSocket("ws{{if .Secure}}s{{end}}://{{.Address}}" + window.location.search);
         conn.onclose = function(evt) {
             appendLog($("<div><b>Connection closed.</b></div>"))
         }

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
@@ -21,6 +22,7 @@ var centername = flag.String("centername", "", "Name of the notification center"
 var message = flag.String("message", "", "Message to send to the clients")
 var mail = flag.String("mail", "", "Mail address")
 var addr = flag.String("addr", "http://localhost:8080", "Address of the service")
+var disableCertCheck = flag.Bool("disable-cert-check", false, "Disables certificate checking")
 
 var prikey *rsa.PrivateKey
 
@@ -58,7 +60,20 @@ func doPost(addr, body string) {
 	req.Header.Set("Authorization", "GoPush " + sign(body))
 
 	var resp *http.Response
-	resp, err = http.DefaultClient.Do(req)
+	var client *http.Client
+
+	if *disableCertCheck {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client = &http.Client{
+			Transport: tr,
+		}
+	} else {
+		client = http.DefaultClient		
+	}
+
+	resp, err = client.Do(req)
 	if err != nil {
 		panic(err.Error())
 	}
