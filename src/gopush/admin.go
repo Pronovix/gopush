@@ -1,13 +1,75 @@
 package gopush
 
 import (
+	"crypto/rand"
+	"crypto/sha1"
+	"errors"
+	"fmt"
+	"io"
 	"net/http"
-	"net/url"
+	"time"
 )
 
 type adminAdd struct {
 	Mail 	string
 	Key 	string
+}
+
+type adminPageData struct {
+	APITokens 	[]APIToken
+	Nonce 		string
+}
+
+func genNonce() string {
+	size := 128
+	b := make([]byte, size)
+	n, err := io.ReadFull(rand.Reader, b)
+	if n != len(b) || err != nil {
+		return ""
+	}
+
+	h := sha1.New()
+	h.Write(b)
+	digest := h.Sum(nil)
+
+	return fmt.Sprintf("%x", digest)
+}
+
+func (svc *GoPushService) checkNonce(r *http.Request) bool {
+	cookie, err := r.Cookie("gopush-nonce")
+	if err == nil {
+		return cookie.Value == r.FormValue("nonce") && cookie.Value != ""
+	}
+	
+	return false
+}
+
+func (svc *GoPushService) ensureNonce(w http.ResponseWriter, r *http.Request) (string, error) {
+	cookie, err := r.Cookie("gopush-nonce")
+	if err != nil {
+		if err == http.ErrNoCookie {
+			cookie = &http.Cookie{
+				Name: "gopush-nonce",
+			}
+			// Generate nonce
+			nonce := genNonce()
+			if nonce == "" {
+				return "", errors.New("Empty nonce")
+			} else {
+				cookie.Value = nonce
+			}
+		} else {
+			return "", err
+		}
+	}
+
+	cookie.Secure = svc.certFile != "" && svc.keyFile != ""
+	cookie.HttpOnly = true
+	cookie.Expires = time.Now().Add(time.Hour)
+
+	http.SetCookie(w, cookie)
+
+	return cookie.Value, nil
 }
 
 func (svc *GoPushService) checkAdminAuth(w http.ResponseWriter, r *http.Request) bool {
@@ -30,6 +92,12 @@ func (svc *GoPushService) handleAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	nonce, nerr := svc.ensureNonce(w, r)
+	if nerr != nil {
+		serveError(w, nerr)
+		return
+	}
+
 	c := svc.getConnection()
 	rows, err := c.Query("SELECT Mail, PublicKey, Admin FROM APIToken ORDER BY Mail")
 	if err != nil {
@@ -47,7 +115,7 @@ func (svc *GoPushService) handleAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := adminPage.Execute(w, at); err != nil {
+	if err := adminPage.Execute(w, &adminPageData{Nonce: nonce, APITokens: at}); err != nil {
 		serveError(w, err)
 		return
 	}
@@ -67,6 +135,13 @@ func (svc *GoPushService) handleAdminAdd(w http.ResponseWriter, r *http.Request)
 		serveError(w, err)
 		return
 	}
+
+	if !svc.checkNonce(r) {
+		serve401(w)
+		return
+	}
+
+	svc.ensureNonce(w, r)
 
 	publicKey := r.FormValue("publickey")
 	privateKey := ""
@@ -104,13 +179,28 @@ func (svc *GoPushService) handleAdminAdd(w http.ResponseWriter, r *http.Request)
 }
 
 func (svc *GoPushService) handleAdminRemove(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		serve404(w)
+		return
+	}
+
 	if !svc.checkAdminAuth(w, r) {
 		return
 	}
 
-	v, _ := url.ParseQuery(r.URL.RawQuery)
+	if err := r.ParseForm(); err != nil {
+		serveError(w, err)
+		return
+	}
 
-	mail := v.Get("mail")
+	if !svc.checkNonce(r) {
+		serve401(w)
+		return
+	}
+
+	svc.ensureNonce(w, r)
+
+	mail := r.FormValue("mail")
 
 	if mail == "" {
 		serve404(w)

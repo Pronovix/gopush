@@ -7,14 +7,22 @@
 					<strong>Public Key:</strong> <small>(If you leave this empty, a key will be generated for you, but the private part won't be stored.)</small><br />
 					<textarea name="publickey"></textarea>
 				</p>
+				<input type="hidden" name="nonce" value="{{.Nonce}}" />
 				<input type="submit" value="Add" />
 			</fieldset>
 		</form>
 
-		{{range .}}
+		{{$nonce := .Nonce}}
+		{{range .APITokens}}
 		<h3>{{.Mail|html}}</h3>
 		<p><strong>Public key:</strong> <br /> <pre>{{.PublicKey}}</pre></p>
-		<p><a href="/admin/remove?mail={{.Mail | urlquery | html}}">Revoke</a></p>
+		<p>
+			<form action="/admin/remove" method="POST">
+				<input type="hidden" name="mail" value="{{.Mail | html}}" />
+				<input type="hidden" name="nonce" value="{{$nonce}}" />
+				<input type="submit" value="Revoke" /> 
+			</form>
+		</p>
 		{{end}}
 	</body>
 </html>
