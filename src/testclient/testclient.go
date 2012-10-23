@@ -14,6 +14,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+
+	"log"
 )
 
 var privateKeyFile = flag.String("privkey", "", "Location of the private key")
@@ -29,12 +31,12 @@ var prikey *rsa.PrivateKey
 func loadPrivateKey() {
 	content, err := ioutil.ReadFile(*privateKeyFile)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	marshaled, _ := pem.Decode([]byte(content))
 	prikey, err = x509.ParsePKCS1PrivateKey(marshaled.Bytes)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 }
 
@@ -45,7 +47,7 @@ func sign(data string) string {
 
 	s, err := rsa.SignPKCS1v15(rand.Reader, prikey, crypto.SHA1, digest)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 
 	return hex.EncodeToString(s)
@@ -54,7 +56,7 @@ func sign(data string) string {
 func doPost(addr, body string) {
 	req, err := http.NewRequest("POST", addr, strings.NewReader(body))
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 
 	req.Header.Set("Authorization", "GoPush " + sign(body))
@@ -75,7 +77,7 @@ func doPost(addr, body string) {
 
 	resp, err = client.Do(req)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 	defer resp.Body.Close()
 
@@ -89,11 +91,11 @@ func main() {
 	loadPrivateKey()	
 
 	if *mail == "" {
-		panic("Mail must be set")
+		log.Fatal("Mail must be set")
 	}
 
 	if *centername == "" {
-		panic("centername must be set")
+		log.Fatal("centername must be set")
 	}
 
 	switch *action{
@@ -103,11 +105,11 @@ func main() {
 			doPost(*addr + "/removecenter?mail=" + *mail, *centername)
 		case "notify":
 			if *message == "" {
-				panic("message must be set")
+				log.Fatal("message must be set")
 			}
 
 			doPost(*addr + "/notify?mail=" + *mail + "&center=" + *centername, *message)
 		default:
-			panic("invalid action")
+			log.Fatal("invalid action")
 	}
 }

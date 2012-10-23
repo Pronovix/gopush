@@ -4,6 +4,8 @@ import (
 	"flag"
 	"net/http"
 	"text/template"
+
+	"log"
 )
 
 var indexTemplate = template.Must(template.ParseFiles("testindex.html"))
@@ -27,6 +29,6 @@ func main() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { indexTemplate.Execute(w , data) })
 	if err := http.ListenAndServe(*addr, nil); err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 }

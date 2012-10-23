@@ -45,7 +45,7 @@ func NewService(configName string, allowincoming bool) *GoPushService {
 
 	config, err := readConfig(configName)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	instance.config = config
 
