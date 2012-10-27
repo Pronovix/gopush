@@ -21,7 +21,7 @@ func (svc *GoPushService) checkAuth(r *http.Request, body []byte) bool {
 	}
 
 	authheader := r.Header.Get("Authorization")
-	if authheader[0:len(svc.authName)] != svc.authName {
+	if authheader == "" || authheader[0:len(svc.authName)] != svc.authName {
 		return false
 	}
 	signature := authheader[len(svc.authName):]
