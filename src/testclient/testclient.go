@@ -94,7 +94,7 @@ func main() {
 		log.Fatal("Mail must be set")
 	}
 
-	if *centername == "" {
+	if *centername == "" && *action != "test" {
 		log.Fatal("centername must be set")
 	}
 
@@ -109,6 +109,12 @@ func main() {
 			}
 
 			doPost(*addr + "/notify?mail=" + *mail + "&center=" + *centername, *message)
+		case "test":
+			if *message == "" {
+				log.Fatal("message must be set")
+			}
+
+			doPost(*addr + "/test?mail=" + *mail, *message)
 		default:
 			log.Fatal("invalid action")
 	}

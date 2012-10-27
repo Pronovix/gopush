@@ -2,6 +2,7 @@ package gopush
 
 import (
 	"io"
+	"io/ioutil"
 	"net/http"
 )
 
@@ -23,4 +24,22 @@ func serveError(w http.ResponseWriter, err error) {
 	io.WriteString(w, "Internal Server Error")
 	io.WriteString(w, "\n")
 	io.WriteString(w, err.Error())
+}
+
+func (svc *GoPushService) handleTest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		serve404(w)
+		return
+	}
+
+	body, _ := ioutil.ReadAll(r.Body)
+	if !svc.checkAuth(r, body) {
+		serve401(w)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+
+	w.Write(body)
 }

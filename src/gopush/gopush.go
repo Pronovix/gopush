@@ -59,6 +59,8 @@ func NewService(configName string, allowincoming bool) *GoPushService {
 	mux.HandleFunc("/notify", func (w http.ResponseWriter, r *http.Request) { instance.handleNotify(w, r) })
 	mux.HandleFunc("/removecenter", func (w http.ResponseWriter, r *http.Request) { instance.handleRemoveCenter(w, r) })
 
+	mux.HandleFunc("/test", func (w http.ResponseWriter, r *http.Request) { instance.handleTest(w, r) })
+
 	mux.HandleFunc("/ping", func (w http.ResponseWriter, r *http.Request) { instance.handlePing(w, r) })
 
 	mux.Handle("/listen", websocket.Handler(func (conn *websocket.Conn) {
