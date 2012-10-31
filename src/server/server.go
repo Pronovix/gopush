@@ -11,6 +11,7 @@ var procs = flag.Int("procs", 0, "Number of logical processors to utilize")
 var certFile = flag.String("certfile", "", "Certificate file (HTTPS, WSS)")
 var keyFile = flag.String("keyfile", "", "Private key (HTTPS, WSS)")
 var addr = flag.String("addr", "", "Network address of the server")
+var configName = flag.String("config", "config.json", "Path to the server config file.")
 
 func main() {
 	flag.Parse()
@@ -23,7 +24,7 @@ func main() {
 
 	var defaultAddr string
 
-	svc := gopush.NewService("config.json", false)
+	svc := gopush.NewService(*configName, false)
 	if *certFile != "" && *keyFile != "" {
 		svc.SetSSL(*certFile, *keyFile)
 		defaultAddr = ":443"
