@@ -3,5 +3,6 @@
   "dbuser": "gopush",
   "dbpass": "gopush",
   "adminuser": "admin",
-  "adminpass": "admin"
+  "adminpass": "admin",
+  "timeout": "0"
 }

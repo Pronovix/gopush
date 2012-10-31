@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"net/http"
 	"net/url"
+	"strconv"
 	"text/template"
 
 	"code.google.com/p/go.net/websocket"
@@ -23,6 +24,7 @@ type GoPushService struct {
 	hubs 		map[string]*wshub
 	certFile    string
 	keyFile     string
+	timeout		int64
 }
 
 func NewService(configName string, allowincoming bool) *GoPushService {
@@ -41,6 +43,7 @@ func NewService(configName string, allowincoming bool) *GoPushService {
 		hubs: make(map[string]*wshub),
 		certFile: "",
 		keyFile: "",
+		timeout: 0,
 	}
 
 	config, err := readConfig(configName)
@@ -48,6 +51,18 @@ func NewService(configName string, allowincoming bool) *GoPushService {
 		log.Fatal(err)
 	}
 	instance.config = config
+
+	var timeout int64
+	if ctimeout := config["timeout"]; ctimeout != "" {
+		var err error
+		timeout, err = strconv.ParseInt(ctimeout, 10, 32)
+		if err != nil {
+			log.Fatalf("Unable to parse value %s as integer. Error: %s\n", ctimeout, err.Error())
+		}
+	}
+	instance.timeout = timeout
+
+	log.Printf("Notification center timeout is set to %d second(s).\n", instance.timeout)
 
 	instance.adminCreds = base64.StdEncoding.EncodeToString([]byte(config["adminuser"] + ":" + config["adminpass"]))
 

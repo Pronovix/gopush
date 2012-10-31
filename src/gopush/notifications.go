@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"io"
 	"io/ioutil"
+	"time"
 
 	"log"
 )
@@ -56,11 +57,7 @@ func (svc *GoPushService) handleNewCenter(w http.ResponseWriter, r *http.Request
 
 	newcenter := string(body)
 
-	centername := mail + "____" + newcenter
-
-	svc.lastState[centername] = ""
-	svc.hubs[centername] = newWSHub()
-	go svc.hubs[centername].run()
+	centername := svc.createCenter(mail, newcenter)
 
 	log.Printf("Created new notification center: %s\n", centername)
 
@@ -116,7 +113,7 @@ func (svc *GoPushService) handleRemoveCenter(w http.ResponseWriter, r *http.Requ
 	v, _ := url.ParseQuery(r.URL.RawQuery)
 	mail := v.Get("mail")
 	center := string(body)
-	centername := mail + "____" + center
+	centername := getCenterName(mail, center)
 	if _, ok := svc.lastState[centername]; !ok {
 		serve404(w)
 		return
@@ -124,11 +121,35 @@ func (svc *GoPushService) handleRemoveCenter(w http.ResponseWriter, r *http.Requ
 
 	log.Printf("Removed notification center: %s\n", centername)
 
-	delete(svc.lastState, centername)
-
-	svc.hubs[centername].quit <- true
-
-	delete(svc.hubs, centername)
+	svc.removeCenter(mail, center)
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func getCenterName(mail, center string) string {
+	return mail + "____" + center
+}
+
+func (svc *GoPushService) createCenter(mail, center string) string {
+	centername := getCenterName(mail, center)
+	svc.lastState[centername] = ""
+	svc.hubs[centername] = newWSHub()
+	go svc.hubs[centername].run()
+	if svc.timeout > 0 {
+		go func() {
+			time.Sleep(time.Duration(svc.timeout) * time.Second)
+			if _, ok := svc.hubs[centername]; ok {
+				svc.removeCenter(mail, center)
+			}
+		}()
+	}
+
+	return centername
+}
+
+func (svc *GoPushService) removeCenter(mail, center string) {
+	centername := getCenterName(mail, center)
+	delete(svc.lastState, centername)
+	svc.hubs[centername].quit <- true
+	delete(svc.hubs, centername)
 }
