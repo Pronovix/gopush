@@ -13,7 +13,7 @@ func (svc *GoPushService) getConnection() *sql.DB {
 	if svc.connection == nil {
 		var err error
 		svc.connection, err = sql.Open("mysql",
-			svc.config["dbuser"] + ":" + svc.config["dbpass"] + "@/" + svc.config["dbname"] + "?charset=utf8")
+			svc.config.DBUser + ":" + svc.config.DBPass + "@/" + svc.config.DBName + "?charset=utf8")
 		if err != nil {
 			return nil
 		}

@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"net/http"
 	"net/url"
-	"strconv"
 	"text/template"
 
 	"code.google.com/p/go.net/websocket"
@@ -18,13 +17,12 @@ type GoPushService struct {
 	authName 	string
 	lastState 	map[string]string
 	connection 	*sql.DB
-	config 		map[string]string
+	config 		Config
 	adminCreds 	string
 	server 		*http.Server
 	hubs 		map[string]*wshub
 	certFile    string
 	keyFile     string
-	timeout		int64
 }
 
 func NewService(configName string, allowincoming bool) *GoPushService {
@@ -35,7 +33,7 @@ func NewService(configName string, allowincoming bool) *GoPushService {
 		authName: "GoPush ",
 		lastState: make(map[string]string),
 		connection: nil,
-		config: make(map[string]string),
+		config: Config{},
 		adminCreds: "",
 		server: &http.Server{
 				Handler: mux,
@@ -43,28 +41,17 @@ func NewService(configName string, allowincoming bool) *GoPushService {
 		hubs: make(map[string]*wshub),
 		certFile: "",
 		keyFile: "",
-		timeout: 0,
 	}
 
-	config, err := readConfig(configName)
+	config, err := ReadConfig(configName)
 	if err != nil {
 		log.Fatal(err)
 	}
 	instance.config = config
 
-	var timeout int64
-	if ctimeout := config["timeout"]; ctimeout != "" {
-		var err error
-		timeout, err = strconv.ParseInt(ctimeout, 10, 32)
-		if err != nil {
-			log.Fatalf("Unable to parse value %s as integer. Error: %s\n", ctimeout, err.Error())
-		}
-	}
-	instance.timeout = timeout
+	log.Printf("Notification center timeout is set to %d second(s).\n", config.Timeout)
 
-	log.Printf("Notification center timeout is set to %d second(s).\n", instance.timeout)
-
-	instance.adminCreds = base64.StdEncoding.EncodeToString([]byte(config["adminuser"] + ":" + config["adminpass"]))
+	instance.adminCreds = base64.StdEncoding.EncodeToString([]byte(config.AdminUser + ":" + config.AdminPass))
 
 	mux.HandleFunc("/admin", func (w http.ResponseWriter, r *http.Request) { instance.handleAdmin(w, r) })
 	mux.HandleFunc("/admin/add", func (w http.ResponseWriter, r *http.Request) { instance.handleAdminAdd(w, r) })

@@ -135,9 +135,9 @@ func (svc *GoPushService) createCenter(mail, center string) string {
 	svc.lastState[centername] = ""
 	svc.hubs[centername] = newWSHub()
 	go svc.hubs[centername].run()
-	if svc.timeout > 0 {
+	if svc.config.Timeout > 0 {
 		go func() {
-			time.Sleep(time.Duration(svc.timeout) * time.Second)
+			time.Sleep(time.Duration(svc.config.Timeout) * time.Second)
 			if _, ok := svc.hubs[centername]; ok {
 				svc.removeCenter(mail, center)
 			}

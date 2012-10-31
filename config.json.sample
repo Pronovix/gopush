@@ -4,5 +4,5 @@
   "dbpass": "gopush",
   "adminuser": "admin",
   "adminpass": "admin",
-  "timeout": "0"
+  "timeout": 0
 }
