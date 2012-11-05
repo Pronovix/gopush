@@ -12,6 +12,7 @@ type Config struct {
 	AdminUser 	string
 	AdminPass	string
 	Timeout		int64
+	UserCache 	bool
 }
 
 func ReadConfig(path string) (Config, error) {

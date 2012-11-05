@@ -9,6 +9,8 @@ import (
 	_ "code.google.com/p/go-mysql-driver/mysql"
 )
 
+var userCache = make(map[string]*rsa.PublicKey)
+
 func (svc *GoPushService) getConnection() *sql.DB {
 	if svc.connection == nil {
 		var err error
@@ -22,7 +24,7 @@ func (svc *GoPushService) getConnection() *sql.DB {
 	return svc.connection
 }
 
-func (svc *GoPushService) getPublicKeyForMailAddress(mail string) *rsa.PublicKey {
+func (svc *GoPushService) queryDBForPublicKey(mail string) *rsa.PublicKey {
 	c := svc.getConnection()
 	row := c.QueryRow("SELECT PublicKey FROM APIToken WHERE Mail = ?", mail)
 	var pkey string
@@ -36,7 +38,17 @@ func (svc *GoPushService) getPublicKeyForMailAddress(mail string) *rsa.PublicKey
 		return nil
 	}
 
-	// TODO cache
-
 	return pubkey.(*rsa.PublicKey)
+}
+
+func (svc *GoPushService) getPublicKeyForMailAddress(mail string) *rsa.PublicKey {
+	if svc.config.UserCache {
+		if _, ok := userCache[mail]; !ok {
+			userCache[mail] = svc.queryDBForPublicKey(mail)
+		}
+
+		return userCache[mail]
+	}
+
+	return svc.queryDBForPublicKey(mail)
 }

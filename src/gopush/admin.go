@@ -207,6 +207,10 @@ func (svc *GoPushService) handleAdminRemove(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	if svc.config.UserCache {
+		delete(userCache, mail)
+	}
+
 	c := svc.getConnection()
 	if _, err := c.Exec("DELETE FROM APIToken WHERE Mail = ?", mail); err != nil {
 		serveError(w, err)
