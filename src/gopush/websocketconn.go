@@ -1,8 +1,6 @@
 package gopush
 
 import (
-	"log"
-
 	"code.google.com/p/go.net/websocket"
 )
 
@@ -26,15 +24,11 @@ func (c *wsconnection) reader() {
 }
 
 func (c *wsconnection) writer() {
-	defer func() {
-		log.Println("Closing socket")
-		c.conn.Close()
-	}()
+	defer c.conn.Close()
 
 	for {
 		select {
 		case message := <-c.send:
-			log.Printf("Sending message '%s' to client\n", message)
 			err := websocket.Message.Send(c.conn, message)
 			if err != nil {
 				return

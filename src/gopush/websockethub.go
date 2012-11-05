@@ -1,9 +1,5 @@
 package gopush
 
-import (
-	"log"
-)
-
 type wshub struct {
 	connections 	map[*wsconnection]bool
 	broadcast 		chan string
@@ -31,7 +27,6 @@ func (h *wshub) run() {
 			delete(h.connections, c)
 			close(c.send)
 		case m := <-h.broadcast:
-			log.Printf("Broadcasting %s\n", m)
 			for c := range h.connections {
 				select {
 				case c.send <- m:
@@ -43,7 +38,6 @@ func (h *wshub) run() {
 			}
 		case q := <-h.quit:
 			if q {
-				log.Println("Closing connections")
 				for c := range h.connections {
 					c.quit()
 				}

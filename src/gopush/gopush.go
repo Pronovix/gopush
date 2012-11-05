@@ -69,10 +69,8 @@ func NewService(configName string, allowincoming bool) *GoPushService {
 		v, _ := url.ParseQuery(conn.Request().URL.RawQuery)
 		center := v.Get("center")
 		if hub, ok := instance.hubs[center]; ok {
-			log.Println("Accepted WS request")
 			wsHandler(conn, hub, allowincoming)
 		} else {
-			log.Println("Rejected WS request")
 			conn.Close() // TODO figure out if it's possible to send an error message to the client
 		}
 	}))

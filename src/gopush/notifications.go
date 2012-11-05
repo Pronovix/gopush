@@ -93,8 +93,6 @@ func (svc *GoPushService) handleNotify(w http.ResponseWriter, r *http.Request) {
 
 	newmessage := string(body)
 
-	log.Printf("Sent notification to %s: %s\n", centername, newmessage)
-
 	svc.lastState[centername] = newmessage
 
 	go func() { svc.hubs[centername].broadcast <- newmessage }()
