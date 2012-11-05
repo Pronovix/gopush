@@ -95,7 +95,7 @@ func (svc *GoPushService) handleNotify(w http.ResponseWriter, r *http.Request) {
 
 	svc.lastState[centername] = newmessage
 
-	go func() { svc.hubs[centername].broadcast <- newmessage }()
+	svc.hubs[centername].broadcast <- newmessage
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -135,7 +135,7 @@ func getCenterName(mail, center string) string {
 func (svc *GoPushService) createCenter(mail, center string) string {
 	centername := getCenterName(mail, center)
 	svc.lastState[centername] = ""
-	svc.hubs[centername] = newWSHub()
+	svc.hubs[centername] = newWSHub(svc.config.BroadcastBuffer)
 	go svc.hubs[centername].run()
 	if svc.config.Timeout > 0 {
 		go func() {

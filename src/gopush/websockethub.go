@@ -8,10 +8,10 @@ type wshub struct {
 	quit			chan bool
 }
 
-func newWSHub() *wshub {
+func newWSHub(broadcastBuffer int64) *wshub {
 	return &wshub{
 		connections: 	make(map[*wsconnection]bool),
-		broadcast: 		make(chan string),
+		broadcast: 		make(chan string, broadcastBuffer),
 		register:		make(chan *wsconnection),
 		unregister:		make(chan *wsconnection),
 		quit:			make(chan bool),

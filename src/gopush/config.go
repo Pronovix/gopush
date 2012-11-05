@@ -6,13 +6,14 @@ import (
 )
 
 type Config struct {
-	DBName 		string
-	DBUser 		string
-	DBPass		string
-	AdminUser 	string
-	AdminPass	string
-	Timeout		int64
-	UserCache 	bool
+	DBName 				string
+	DBUser 				string
+	DBPass				string
+	AdminUser 			string
+	AdminPass			string
+	Timeout				int64
+	UserCache 			bool
+	BroadcastBuffer 	int64
 }
 
 func ReadConfig(path string) (Config, error) {
