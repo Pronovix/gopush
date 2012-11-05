@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"encoding/pem"
 
+	"log"
+
 	_ "code.google.com/p/go-mysql-driver/mysql"
 )
 
@@ -35,6 +37,7 @@ func (svc *GoPushService) queryDBForPublicKey(mail string) *rsa.PublicKey {
 	marshaled, _ := pem.Decode([]byte(pkey))
 	pubkey, err := x509.ParsePKIXPublicKey(marshaled.Bytes)
 	if err != nil {
+		log.Println(err.Error())
 		return nil
 	}
 
@@ -44,7 +47,11 @@ func (svc *GoPushService) queryDBForPublicKey(mail string) *rsa.PublicKey {
 func (svc *GoPushService) getPublicKeyForMailAddress(mail string) *rsa.PublicKey {
 	if svc.config.UserCache {
 		if _, ok := userCache[mail]; !ok {
-			userCache[mail] = svc.queryDBForPublicKey(mail)
+			if key := svc.queryDBForPublicKey(mail); key != nil {
+				userCache[mail] = key
+			} else {
+				return nil
+			}
 		}
 
 		return userCache[mail]

@@ -35,6 +35,10 @@ func (svc *GoPushService) checkAuth(r *http.Request, body []byte) bool {
 
 	pubkey := svc.getPublicKeyForMailAddress(mail)
 
+	if pubkey == nil {
+		return false
+	}
+
 	err := rsa.VerifyPKCS1v15(pubkey, crypto.SHA1, digest, sig)
 
 	return err == nil
