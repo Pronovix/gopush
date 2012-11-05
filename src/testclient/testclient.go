@@ -59,7 +59,11 @@ func doPost(addr, body string) {
 		log.Fatal(err)
 	}
 
-	req.Header.Set("Authorization", "GoPush " + sign(body))
+	signature := sign(body)
+
+	log.Printf("BODY: %s\nSignature: %s\n", body, signature)
+
+	req.Header.Set("Authorization", "GoPush " + signature)
 
 	var resp *http.Response
 	var client *http.Client
