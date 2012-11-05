@@ -85,7 +85,7 @@ func (svc *GoPushService) handleNotify(w http.ResponseWriter, r *http.Request) {
 	v, _ := url.ParseQuery(r.URL.RawQuery)
 	mail := v.Get("mail")
 	center := v.Get("center")
-	centername := mail + "____" + center
+	centername := getCenterName(mail, center)
 	if _, ok := svc.lastState[centername]; !ok {
 		serve404(w)
 		return
