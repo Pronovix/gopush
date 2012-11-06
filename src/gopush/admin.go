@@ -84,7 +84,7 @@ func (svc *GoPushService) checkAdminAuth(w http.ResponseWriter, r *http.Request)
 
 func (svc *GoPushService) handleAdmin(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
-		serve404(w)
+		serve405(w)
 		return
 	}
 
@@ -123,7 +123,7 @@ func (svc *GoPushService) handleAdmin(w http.ResponseWriter, r *http.Request) {
 
 func (svc *GoPushService) handleAdminAdd(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		serve404(w)
+		serve405(w)
 		return
 	}
 
@@ -137,7 +137,7 @@ func (svc *GoPushService) handleAdminAdd(w http.ResponseWriter, r *http.Request)
 	}
 
 	if !svc.checkNonce(r) {
-		serve401(w)
+		serve403(w)
 		return
 	}
 
@@ -180,7 +180,7 @@ func (svc *GoPushService) handleAdminAdd(w http.ResponseWriter, r *http.Request)
 
 func (svc *GoPushService) handleAdminRemove(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		serve404(w)
+		serve405(w)
 		return
 	}
 
@@ -194,7 +194,7 @@ func (svc *GoPushService) handleAdminRemove(w http.ResponseWriter, r *http.Reque
 	}
 
 	if !svc.checkNonce(r) {
-		serve401(w)
+		serve403(w)
 		return
 	}
 

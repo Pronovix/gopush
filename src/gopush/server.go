@@ -18,6 +18,18 @@ func serve401(w http.ResponseWriter) {
 	io.WriteString(w, "Unauthorized")
 }
 
+func serve405(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/plain; chatset=utf-8")
+	w.WriteHeader(http.StatusMethodNotAllowed)
+	io.WriteString(w, "Method Not Allowed")
+}
+
+func serve403(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/plain; chatset=utf-8")
+	w.WriteHeader(http.StatusForbidden)
+	io.WriteString(w, "Forbidden")
+}
+
 func serveError(w http.ResponseWriter, err error) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusInternalServerError)
