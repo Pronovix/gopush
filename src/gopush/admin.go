@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-var nonces = make(map[string]string)
+var nonces = make(map[string]nonceData)
 
 type adminAdd struct {
 	Mail 	string
@@ -20,6 +20,11 @@ type adminPageData struct {
 	APITokens 	[]APIToken
 	Nonce 		string
 	FormID		string
+}
+
+type nonceData struct {
+	nonce string
+	timer *time.Timer
 }
 
 func genRandomHash(size int) string {
@@ -52,7 +57,8 @@ func (svc *GoPushService) checkNonce(r *http.Request) bool {
 
 	if nonce, ok := nonces[formid]; ok {
 		delete(nonces, formid)
-		return nonce != "" && nonce == r.FormValue("nonce")
+		nonce.timer.Stop()
+		return nonce.nonce != "" && nonce.nonce == r.FormValue("nonce")
 	}
 	
 	return false
@@ -60,12 +66,13 @@ func (svc *GoPushService) checkNonce(r *http.Request) bool {
 
 func (svc *GoPushService) ensureNonce(formid string) string {
 	nonce := genNonce()
-	nonces[formid] = nonce
 
 	// Automatically delete nonces after one day
-	time.AfterFunc(time.Hour * 24, func () {
+	timer := time.AfterFunc(time.Hour * 24, func () {
 		delete(nonces, formid)
 	})
+
+	nonces[formid] = nonceData{nonce: nonce, timer: timer}
 
 	return nonce
 }
