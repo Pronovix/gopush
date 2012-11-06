@@ -14,6 +14,7 @@ type Config struct {
 	Timeout				int64
 	UserCache 			bool
 	BroadcastBuffer 	int64
+	ExtraLogging		bool
 }
 
 func ReadConfig(path string) (Config, error) {

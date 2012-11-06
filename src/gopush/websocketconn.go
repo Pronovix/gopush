@@ -1,6 +1,8 @@
 package gopush
 
 import (
+	"log"
+
 	"code.google.com/p/go.net/websocket"
 )
 
@@ -9,6 +11,7 @@ type wsconnection struct {
 	send 		chan string
 	writequit	chan bool
 	hub			*wshub
+	verbose		bool
 }
 
 func (c *wsconnection) reader() {
@@ -29,6 +32,9 @@ func (c *wsconnection) writer() {
 	for {
 		select {
 		case message := <-c.send:
+			if c.verbose {
+				log.Println("Sending message through websocket.")
+			}
 			err := websocket.Message.Send(c.conn, message)
 			if err != nil {
 				return
@@ -45,12 +51,13 @@ func (c *wsconnection) quit() {
 	c.writequit <- true
 }
 
-func wsHandler(conn *websocket.Conn, h *wshub, allowincoming bool) {
+func wsHandler(conn *websocket.Conn, h *wshub, allowincoming bool, verbose bool) {
 	c := &wsconnection{
 		send: make(chan string, 256),
 		conn: conn,
 		hub: h,
 		writequit: make(chan bool),
+		verbose: verbose,
 	}
 	c.hub.register <- c
 	defer func() { c.hub.unregister <- c }()

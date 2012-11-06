@@ -136,6 +136,7 @@ func (svc *GoPushService) createCenter(mail, center string) string {
 	centername := getCenterName(mail, center)
 	svc.lastState[centername] = ""
 	svc.hubs[centername] = newWSHub(svc.config.BroadcastBuffer)
+	svc.hubs[centername].verbose = svc.config.ExtraLogging
 	go svc.hubs[centername].run()
 	if svc.config.Timeout > 0 {
 		go func() {
