@@ -3,12 +3,13 @@ package gopush
 import (
 	"crypto/rand"
 	"crypto/sha1"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 )
+
+var nonces = make(map[string]string)
 
 type adminAdd struct {
 	Mail 	string
@@ -18,10 +19,10 @@ type adminAdd struct {
 type adminPageData struct {
 	APITokens 	[]APIToken
 	Nonce 		string
+	FormID		string
 }
 
-func genNonce() string {
-	size := 128
+func genRandomHash(size int) string {
 	b := make([]byte, size)
 	n, err := io.ReadFull(rand.Reader, b)
 	if n != len(b) || err != nil {
@@ -35,41 +36,38 @@ func genNonce() string {
 	return fmt.Sprintf("%x", digest)
 }
 
+func genNonce() string {
+	return genRandomHash(128)
+}
+
+func genFormID() string {
+	return genRandomHash(64)
+}
+
 func (svc *GoPushService) checkNonce(r *http.Request) bool {
-	cookie, err := r.Cookie("gopush-nonce")
-	if err == nil {
-		return cookie.Value == r.FormValue("nonce") && cookie.Value != ""
+	formid := r.FormValue("formid")
+	if formid == "" {
+		return false
+	}
+
+	if nonce, ok := nonces[formid]; ok {
+		delete(nonces, formid)
+		return nonce != "" && nonce == r.FormValue("nonce")
 	}
 	
 	return false
 }
 
-func (svc *GoPushService) ensureNonce(w http.ResponseWriter, r *http.Request) (string, error) {
-	cookie, err := r.Cookie("gopush-nonce")
-	if err != nil {
-		if err == http.ErrNoCookie {
-			cookie = &http.Cookie{
-				Name: "gopush-nonce",
-			}
-			// Generate nonce
-			nonce := genNonce()
-			if nonce == "" {
-				return "", errors.New("Empty nonce")
-			} else {
-				cookie.Value = nonce
-			}
-		} else {
-			return "", err
-		}
-	}
+func (svc *GoPushService) ensureNonce(formid string) string {
+	nonce := genNonce()
+	nonces[formid] = nonce
 
-	cookie.Secure = svc.certFile != "" && svc.keyFile != ""
-	cookie.HttpOnly = true
-	cookie.Expires = time.Now().Add(time.Hour)
+	// Automatically delete nonces after one day
+	time.AfterFunc(time.Hour * 24, func () {
+		delete(nonces, formid)
+	})
 
-	http.SetCookie(w, cookie)
-
-	return cookie.Value, nil
+	return nonce
 }
 
 func (svc *GoPushService) checkAdminAuth(w http.ResponseWriter, r *http.Request) bool {
@@ -92,11 +90,8 @@ func (svc *GoPushService) handleAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nonce, nerr := svc.ensureNonce(w, r)
-	if nerr != nil {
-		serveError(w, nerr)
-		return
-	}
+	formid := genFormID()
+	nonce := svc.ensureNonce(formid)
 
 	c := svc.getConnection()
 	rows, err := c.Query("SELECT Mail, PublicKey, Admin FROM APIToken ORDER BY Mail")
@@ -115,7 +110,7 @@ func (svc *GoPushService) handleAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := adminPage.Execute(w, &adminPageData{Nonce: nonce, APITokens: at}); err != nil {
+	if err := adminPage.Execute(w, &adminPageData{Nonce: nonce, FormID: formid, APITokens: at}); err != nil {
 		serveError(w, err)
 		return
 	}
@@ -140,8 +135,6 @@ func (svc *GoPushService) handleAdminAdd(w http.ResponseWriter, r *http.Request)
 		serve403(w)
 		return
 	}
-
-	svc.ensureNonce(w, r)
 
 	publicKey := r.FormValue("publickey")
 	privateKey := ""
@@ -197,8 +190,6 @@ func (svc *GoPushService) handleAdminRemove(w http.ResponseWriter, r *http.Reque
 		serve403(w)
 		return
 	}
-
-	svc.ensureNonce(w, r)
 
 	mail := r.FormValue("mail")
 
