@@ -27,7 +27,12 @@ func (c *wsconnection) reader() {
 }
 
 func (c *wsconnection) writer() {
-	defer c.conn.Close()
+	defer func () {
+		if c.verbose {
+			log.Println("Closing connection.")
+		}
+		c.conn.Close()
+	}()
 
 	for {
 		select {
@@ -44,10 +49,6 @@ func (c *wsconnection) writer() {
 				return
 			}
 		}
-	}
-
-	if c.verbose {
-		log.Println("Closing connection.")
 	}
 }
 
