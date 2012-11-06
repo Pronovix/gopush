@@ -45,6 +45,10 @@ func (c *wsconnection) writer() {
 			}
 		}
 	}
+
+	if c.verbose {
+		log.Println("Closing connection.")
+	}
 }
 
 func (c *wsconnection) quit() {
