@@ -1,0 +1,73 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          gopush
+# Required-Start:    $local_fs $remote_fs $network $syslog $named
+# Required-Stop:     $local_fs $remote_fs $network $syslog $named
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# X-Interactive:     true
+# Short-Description: Start/stop gopush service
+### END INIT INFO
+
+. /etc/default/gopush
+. /lib/lsb/init-functions
+
+NAME="gopush"
+DAEMON="$GOPUSH_HOME/bin/gopush_service"
+PIDFILE="/var/run/gopush.pid"
+
+test -x $DAEMON || exit 5
+
+case $1 in
+	start)
+		# Check the pidfile
+		if [ -e $PIDFILE ]; then
+			status_of_proc -p $PIDFILE $DAEMON "$NAME process" && status="0" || status="$?"
+			if [ $status = "0" ]; then
+				exit 0
+			fi
+		fi
+
+		# Start the daemon
+		log_daemon_msg "Starting the process" "$NAME"
+		if start-stop-daemon --start --quiet --oknodo --pidfile $PIDFILE --exec $DAEMON -- -config=$GOPUSH_CONFIG; then
+			log_end_msg 0
+		else
+			log_end_msg 1
+		fi
+	;;
+	stop)
+  		# Stop the daemon.
+	  	if [ -e $PIDFILE ]; then
+	   		status_of_proc -p $PIDFILE $DAEMON "Stoppping the $NAME process" && status="0" || status="$?"
+	   		if [ "$status" = 0 ]; then
+	    		start-stop-daemon --stop --quiet --oknodo --pidfile $PIDFILE
+	    		/bin/rm -rf $PIDFILE
+	   		fi
+	  	else
+	   		log_daemon_msg "$NAME process is not running"
+	   		log_end_msg 0
+	  	fi
+  	;;
+ 	restart)
+		# Restart the daemon.
+		$0 stop && sleep 2 && $0 start
+  	;;
+ 	status)
+	  	# Check the status of the process.
+	  	if [ -e $PIDFILE ]; then
+			status_of_proc -p $PIDFILE $DAEMON "$NAME process" && exit 0 || exit $?
+	  	else
+			log_daemon_msg "$NAME Process is not running"
+			log_end_msg 0
+	  	fi
+  	;;
+	reload)
+  		$0 restart
+  	;;
+ 	*)
+ 		# For invalid arguments, print the usage message.
+		echo "Usage: $0 {start|stop|restart|reload|status}"
+ 		exit 2
+	;;
+esac

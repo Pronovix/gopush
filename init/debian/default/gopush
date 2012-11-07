@@ -1,0 +1,4 @@
+### GOPUSH SETTINGS ###
+
+GOPUSH_HOME="/opt/local/gopush"
+GOPUSH_CONFIG="/etc/gopush.json"
