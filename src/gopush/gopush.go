@@ -94,8 +94,14 @@ func (svc *GoPushService) Start() {
 	var err error
 	svc.server.Addr = svc.config.Address
 	if svc.config.CertFile != "" && svc.config.KeyFile != "" {
+		if svc.server.Addr == "" {
+			svc.server.Addr = ":443"
+		}
 		err = svc.server.ListenAndServeTLS(svc.config.CertFile, svc.config.KeyFile)
 	} else {
+		if svc.server.Addr == "" {
+			svc.server.Addr = ":80"
+		}
 		err = svc.server.ListenAndServe()
 	}
 	if err != nil {
