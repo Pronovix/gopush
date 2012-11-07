@@ -51,7 +51,7 @@ func main() {
 
 	var defaultAddr string
 
-	svc := gopush.NewService(*configName, false)
+	svc := gopush.NewService(*configName)
 	if *certFile != "" && *keyFile != "" {
 		svc.SetSSL(*certFile, *keyFile)
 		defaultAddr = ":443"

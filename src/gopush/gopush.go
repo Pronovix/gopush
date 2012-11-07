@@ -25,7 +25,7 @@ type GoPushService struct {
 	keyFile     string
 }
 
-func NewService(configName string, allowincoming bool) *GoPushService {
+func NewService(configName string) *GoPushService {
 	mux := http.NewServeMux()
 
 	instance := &GoPushService{
@@ -72,7 +72,7 @@ func NewService(configName string, allowincoming bool) *GoPushService {
 			if instance.config.ExtraLogging {
 				log.Println("Client connected.")
 			}
-			wsHandler(conn, hub, allowincoming, instance.config.ExtraLogging)
+			wsHandler(conn, hub, instance.config.ExtraLogging)
 		} else {
 			if instance.config.ExtraLogging {
 				log.Println("Client connection rejected.")

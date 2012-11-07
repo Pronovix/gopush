@@ -15,15 +15,20 @@ type wsconnection struct {
 }
 
 func (c *wsconnection) reader() {
+	defer func () {
+		c.quit()
+		if c.verbose {
+			log.Println("Closing reader goroutine.")
+		}
+	}()
+
 	for {
 		var message string
 		err := websocket.Message.Receive(c.conn, &message)
 		if err != nil {
-			break
+			return
 		}
-		c.hub.broadcast <- message
 	}
-	c.conn.Close()
 }
 
 func (c *wsconnection) writer() {
@@ -56,7 +61,7 @@ func (c *wsconnection) quit() {
 	c.writequit <- true
 }
 
-func wsHandler(conn *websocket.Conn, h *wshub, allowincoming bool, verbose bool) {
+func wsHandler(conn *websocket.Conn, h *wshub, verbose bool) {
 	c := &wsconnection{
 		send: make(chan string, 256),
 		conn: conn,
@@ -66,8 +71,6 @@ func wsHandler(conn *websocket.Conn, h *wshub, allowincoming bool, verbose bool)
 	}
 	c.hub.register <- c
 	defer func() { c.hub.unregister <- c }()
-	if allowincoming {
-		go c.reader()
-	}
+	go c.reader()
 	c.writer()
 }
