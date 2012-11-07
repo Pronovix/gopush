@@ -5,7 +5,6 @@
 <script type="text/javascript">
     $(function() {
 
-    var conn;
     var log = $("#log");
 
     function appendLog(msg) {
@@ -18,16 +17,23 @@
     }
 
     if (window["WebSocket"]) {
-        conn = new WebSocket("ws{{if .Secure}}s{{end}}://{{.Address}}" + window.location.search);
-        conn.onclose = function(evt) {
-            appendLog($("<div><b>Connection closed.</b></div>"))
-        }
-        conn.onmessage = function(evt) {
-            appendLog($("<div/>").text(evt.data))
-        }
+        window.conn = new WebSocket("ws{{if .Secure}}s{{end}}://{{.Address}}" + window.location.search);
+
+        window.conn.onclose = function(evt) {
+            appendLog($("<div><b>Connection closed.</b></div>"));
+        };
+
+        window.conn.onmessage = function(evt) {
+            appendLog($("<div/>").text(evt.data));
+        };
+
+        window.onbeforeunload = function () {
+            window.conn.close();
+        };
     } else {
         appendLog($("<div><b>Your browser does not support WebSockets.</b></div>"))
     }
+
     });
 </script>
 <style type="text/css">
