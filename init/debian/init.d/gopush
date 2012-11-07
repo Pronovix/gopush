@@ -13,7 +13,7 @@
 . /lib/lsb/init-functions
 
 NAME="gopush"
-DAEMON="$GOPUSH_HOME/bin/gopush_service"
+DAEMON="$GOPUSH_HOME/bin/gopush_server"
 PIDFILE="/var/run/gopush.pid"
 
 test -x $DAEMON || exit 5
