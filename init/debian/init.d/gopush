@@ -30,7 +30,7 @@ case $1 in
 
 		# Start the daemon
 		log_daemon_msg "Starting the process" "$NAME"
-		if start-stop-daemon --start --quiet --oknodo --pidfile $PIDFILE --exec $DAEMON -- -config=$GOPUSH_CONFIG; then
+		if start-stop-daemon --start --quiet --oknodo --pidfile $PIDFILE --chdir $GOPUSH_HOME --exec $DAEMON -- -config=$GOPUSH_CONFIG; then
 			log_end_msg 0
 		else
 			log_end_msg 1
