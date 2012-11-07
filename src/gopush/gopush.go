@@ -21,8 +21,6 @@ type GoPushService struct {
 	adminCreds 	string
 	server 		*http.Server
 	hubs 		map[string]*wshub
-	certFile    string
-	keyFile     string
 }
 
 func NewService(configName string) *GoPushService {
@@ -39,8 +37,6 @@ func NewService(configName string) *GoPushService {
 				Handler: mux,
 			},
 		hubs: make(map[string]*wshub),
-		certFile: "",
-		keyFile: "",
 	}
 
 	config, err := ReadConfig(configName)
@@ -84,11 +80,6 @@ func NewService(configName string) *GoPushService {
 	return instance
 }
 
-func (svc *GoPushService) SetSSL(certFile, keyFile string) {
-	svc.certFile = certFile
-	svc.keyFile = keyFile
-}
-
 var adminPage = template.Must(template.ParseFiles("admin.html"))
 var adminAddGenPriKeyPage = template.Must(template.ParseFiles("adminaddgenprikey.html"))
 
@@ -99,11 +90,11 @@ type APIToken struct {
 	Admin		bool
 }
 
-func (svc *GoPushService) Start(addr string) {
+func (svc *GoPushService) Start() {
 	var err error
-	svc.server.Addr = addr
-	if svc.certFile != "" && svc.keyFile != "" {
-		err = svc.server.ListenAndServeTLS(svc.certFile, svc.keyFile)
+	svc.server.Addr = svc.config.Address
+	if svc.config.CertFile != "" && svc.config.KeyFile != "" {
+		err = svc.server.ListenAndServeTLS(svc.config.CertFile, svc.config.KeyFile)
 	} else {
 		err = svc.server.ListenAndServe()
 	}

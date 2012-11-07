@@ -6,9 +6,12 @@ import (
 )
 
 type Config struct {
+	Address				string
 	DBName 				string
 	DBUser 				string
 	DBPass				string
+	CertFile			string
+	KeyFile				string
 	AdminUser 			string
 	AdminPass			string
 	Timeout				int64

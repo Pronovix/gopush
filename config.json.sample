@@ -1,7 +1,10 @@
 {
+  "address": ":8080",
   "dbname": "gopush",
   "dbuser": "gopush",
   "dbpass": "gopush",
+  "certfile": "",
+  "keyfile": "",
   "adminuser": "admin",
   "adminpass": "admin",
   "timeout": 0,
