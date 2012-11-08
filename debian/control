@@ -1,0 +1,12 @@
+Source: gopush
+Maintainer: Tamás Demeter-Haludka <tamas@pronovix.com>
+Section: misc
+Priority: optional
+Standards-Version: 3.9.1
+Build-Depends: debhelper (>= 8), golang (>= 1.0.2)
+
+Package: gopush
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Push notification service, written in Go.
+ The debian package comes with an init script.
