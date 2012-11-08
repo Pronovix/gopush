@@ -11,11 +11,11 @@ deps:
 	$(GO) get -d all
 
 install: all
-	install -d $(DESTDIR)$(prefix)/gopush/bin
-	install -m 554 bin/* $(DESTDIR)$(prefix)/gopush/bin/
-	install -m 444 *.html $(DESTDIR)$(prefix)/gopush/
-	install -d $(DESTDIR)$(sysconfdir)
-	install -m 644 config.json.sample $(DESTDIR)$(sysconfdir)/gopush.json
+	install -d "$(DESTDIR)$(prefix)/gopush/bin"
+	install -m 554 bin/* "$(DESTDIR)$(prefix)/gopush/bin/"
+	install -m 444 *.html "$(DESTDIR)$(prefix)/gopush/"
+	install -d "$(DESTDIR)$(sysconfdir)"
+	install -m 644 config.json.sample "$(DESTDIR)$(sysconfdir)/gopush.json"
 	if [ "$(INITSCRIPT_TYPE)" != "" ]; then \
 		if [ -e init/$(INITSCRIPT_TYPE) ]; then \
 			cd init/$(INITSCRIPT_TYPE) && DESTDIR="$(DESTDIR)" sysconfdir="$(sysconfdir)" make install ;\
