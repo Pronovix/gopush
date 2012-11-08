@@ -77,6 +77,12 @@ func NewService(configName string) *GoPushService {
 		}
 	}))
 
+	if instance.config.RedirectMainPage != "" {
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, instance.config.RedirectMainPage, http.StatusFound)
+		})
+	}
+
 	return instance
 }
 

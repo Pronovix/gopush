@@ -18,6 +18,7 @@ type Config struct {
 	UserCache 			bool
 	BroadcastBuffer 	int64
 	ExtraLogging		bool
+	RedirectMainPage	string
 }
 
 func ReadConfig(path string) (Config, error) {

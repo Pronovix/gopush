@@ -10,5 +10,6 @@
   "timeout": 0,
   "usercache": true,
   "broadcastbuffer": 4096,
-  "extralogging": true
+  "extralogging": true,
+  "redirectmainpage": ""
 }
