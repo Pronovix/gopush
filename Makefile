@@ -4,8 +4,11 @@ DEBVERSION = 1
 prefix = /opt/local
 sysconfdir = /etc
 
-all: deps
+all: deps test
 	$(GO) install gopush_server
+
+test:
+	$(GO) test gopush
 
 deps:
 	$(GO) get -d all
