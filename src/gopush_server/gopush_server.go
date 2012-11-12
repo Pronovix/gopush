@@ -63,5 +63,7 @@ func main() {
 		}
 	}()
 
-	svc.Start()
+	if err := svc.Start(); err != nil {
+		log.Fatal(err)
+	}
 }
