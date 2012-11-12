@@ -2,7 +2,9 @@ package gopush
 
 import (
 	"database/sql"
+	"crypto/tls"
 	"encoding/base64"
+	"net"
 	"net/http"
 	"net/url"
 	"text/template"
@@ -21,6 +23,7 @@ type GoPushService struct {
 	adminCreds 	string
 	server 		*http.Server
 	hubs 		map[string]*wshub
+	listener	net.Listener
 }
 
 func NewService(configName string) *GoPushService {
@@ -37,6 +40,7 @@ func NewService(configName string) *GoPushService {
 				Handler: mux,
 			},
 		hubs: make(map[string]*wshub),
+		listener: nil,
 	}
 
 	config, err := ReadConfig(configName)
@@ -96,21 +100,51 @@ type APIToken struct {
 	Admin		bool
 }
 
-func (svc *GoPushService) Start() {
+func (svc *GoPushService) Start() error {
 	var err error
 	svc.server.Addr = svc.config.Address
 	if svc.config.CertFile != "" && svc.config.KeyFile != "" {
 		if svc.server.Addr == "" {
-			svc.server.Addr = ":443"
+			svc.server.Addr = ":https"
 		}
-		err = svc.server.ListenAndServeTLS(svc.config.CertFile, svc.config.KeyFile)
+		config := &tls.Config{}
+		if svc.server.TLSConfig != nil {
+			*config = *svc.server.TLSConfig
+		}
+		if config.NextProtos == nil {
+			config.NextProtos = []string{"http/1.1"}
+		}
+
+		config.Certificates = make([]tls.Certificate, 1)
+		config.Certificates[0], err = tls.LoadX509KeyPair(svc.config.CertFile, svc.config.KeyFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var conn net.Listener
+		conn, err = net.Listen("tcp", svc.server.Addr)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		svc.listener = tls.NewListener(conn, config)
 	} else {
 		if svc.server.Addr == "" {
-			svc.server.Addr = ":80"
+			svc.server.Addr = ":http"
 		}
-		err = svc.server.ListenAndServe()
+		svc.listener, err = net.Listen("tcp", svc.server.Addr)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	return svc.server.Serve(svc.listener)
+}
+
+func (svc *GoPushService) Stop() {
+	log.Println("Shutting down server.")
+	svc.listener.Close()
 }

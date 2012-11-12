@@ -43,10 +43,13 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
+	svc := gopush.NewService(*configName)
+
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func () {
 		for sig := range c {
+			svc.Stop()
 			log.Printf("Received signal %d, shutting down\n", sig)
 			if *cpuProfile != "" { // Stop profiling
 				pprof.StopCPUProfile()
@@ -54,8 +57,6 @@ func main() {
 			os.Exit(1)
 		}
 	}()
-
-	svc := gopush.NewService(*configName)
 
 	svc.Start()
 }
