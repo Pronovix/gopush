@@ -1,0 +1,13 @@
+{
+	"formID": "{{.FormID}}",
+	"nonce": "{{.Nonce}}",
+	"apitokens" : [
+	{{range .APITokens}}
+	{
+		"mail": "{{.Mail}}",
+		"pubkey": "{{.PublicKey|js}}"
+	},
+	{{end}}
+	{}
+	]
+}
