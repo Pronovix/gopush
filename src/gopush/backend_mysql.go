@@ -29,6 +29,10 @@ func NewMySQLBackend(config Config) *MySQLBackend {
 	return b
 }
 
+func (b *MySQLBackend) Stop() {
+	b.connection.Close()
+}
+
 func (b *MySQLBackend) getPublicKeyWithoutCache(mail string) *rsa.PublicKey {
 	row := b.connection.QueryRow("SELECT PublicKey FROM APIToken WHERE Mail = ?", mail)
 	var pkey string

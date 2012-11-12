@@ -142,4 +142,5 @@ func (svc *GoPushService) Start() error {
 func (svc *GoPushService) Stop() {
 	log.Println("Shutting down server.")
 	svc.listener.Close()
+	svc.backend.Stop()
 }

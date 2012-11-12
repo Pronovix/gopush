@@ -9,4 +9,5 @@ type Backend interface {
 	GetAll() ([]APIToken, error)
 	Add(token *APIToken) error
 	Remove(mail string) error
+	Stop()
 }
