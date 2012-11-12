@@ -46,3 +46,12 @@ func stringToPublicKey(pkey string) *rsa.PublicKey {
 
 	return pubkey.(*rsa.PublicKey)
 }
+
+func stringToPrivateKey(pkey string) *rsa.PrivateKey {
+	marshaled, _ := pem.Decode([]byte(pkey))
+	prikey, err := x509.ParsePKCS1PrivateKey(marshaled.Bytes)
+	if err != nil {
+		return nil
+	}
+	return prikey
+}
