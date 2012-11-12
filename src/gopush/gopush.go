@@ -135,6 +135,9 @@ func (svc *GoPushService) Start() error {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if svc.listener == nil {
+		log.Fatalln("Failed to initialize listener.")
+	}
 
 	return svc.server.Serve(svc.listener)
 }
