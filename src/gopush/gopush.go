@@ -26,7 +26,7 @@ type GoPushService struct {
 	listener	net.Listener
 }
 
-func NewService(configName string) *GoPushService {
+func NewService(config Config) *GoPushService {
 	mux := http.NewServeMux()
 
 	instance := &GoPushService{
@@ -43,10 +43,6 @@ func NewService(configName string) *GoPushService {
 		listener: nil,
 	}
 
-	config, err := ReadConfig(configName)
-	if err != nil {
-		log.Fatal(err)
-	}
 	instance.config = config
 
 	log.Printf("Notification center timeout is set to %d second(s).\n", config.Timeout)

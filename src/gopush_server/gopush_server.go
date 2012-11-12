@@ -43,7 +43,12 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	svc := gopush.NewService(*configName)
+	config, err := gopush.ReadConfig(*configName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	svc := gopush.NewService(config)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
