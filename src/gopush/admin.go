@@ -100,21 +100,9 @@ func (svc *GoPushService) handleAdmin(w http.ResponseWriter, r *http.Request) {
 	formid := genFormID()
 	nonce := svc.ensureNonce(formid)
 
-	c := svc.getConnection()
-	rows, err := c.Query("SELECT Mail, PublicKey, Admin FROM APIToken ORDER BY Mail")
+	at, err := svc.backend.GetAll()
 	if err != nil {
 		serveError(w, err)
-		return
-	}
-	var at []APIToken
-	for rows.Next() {
-		var a APIToken
-		rows.Scan(&a.Mail, &a.PublicKey, &a.Admin)
-		at = append(at, a)
-	}
-	if err := rows.Err(); err != nil {
-		serveError(w, err)
-		return
 	}
 
 	if err := adminPage.Execute(w, &adminPageData{Nonce: nonce, FormID: formid, APITokens: at}); err != nil {
@@ -148,7 +136,7 @@ func (svc *GoPushService) handleAdminAdd(w http.ResponseWriter, r *http.Request)
 	var errk error
 
 	if publicKey == "" {
-		privateKey, publicKey, errk = svc.genKeyPair()
+		privateKey, publicKey, errk = genKeyPair(svc.keySize)
 		if errk != nil {
 			serveError(w, errk)
 			return
@@ -161,10 +149,8 @@ func (svc *GoPushService) handleAdminAdd(w http.ResponseWriter, r *http.Request)
 		Admin: false,
 	}
 
-	c := svc.getConnection()
-	if _, err := c.Exec("INSERT INTO APIToken(Mail, PublicKey, Admin) VALUES(?,?,?)", t.Mail, t.PublicKey, t.Admin); err != nil {
+	if err := svc.backend.Add(t); err != nil {
 		serveError(w, err)
-		return
 	}
 
 	if privateKey == "" {
@@ -205,14 +191,8 @@ func (svc *GoPushService) handleAdminRemove(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if svc.config.UserCache {
-		delete(userCache, mail)
-	}
-
-	c := svc.getConnection()
-	if _, err := c.Exec("DELETE FROM APIToken WHERE Mail = ?", mail); err != nil {
+	if err := svc.backend.Remove(mail); err != nil {
 		serveError(w, err)
-		return
 	}
 
 	http.Redirect(w, r, "/admin", http.StatusFound)

@@ -1,7 +1,6 @@
 package gopush
 
 import (
-	"database/sql"
 	"crypto/tls"
 	"encoding/base64"
 	"net"
@@ -18,28 +17,28 @@ type GoPushService struct {
 	keySize 	int
 	authName 	string
 	lastState 	map[string]string
-	connection 	*sql.DB
 	config 		Config
 	adminCreds 	string
 	server 		*http.Server
 	hubs 		map[string]*wshub
 	listener	net.Listener
+	backend 	Backend
 }
 
-func NewService(config Config) *GoPushService {
+func NewService(config Config, backend Backend) *GoPushService {
 	mux := http.NewServeMux()
 
 	instance := &GoPushService{
 		keySize: 1024,
 		authName: "GoPush ",
 		lastState: make(map[string]string),
-		connection: nil,
 		config: Config{},
 		adminCreds: "",
 		server: &http.Server{
 				Handler: mux,
 			},
 		hubs: make(map[string]*wshub),
+		backend: backend,
 		listener: nil,
 	}
 

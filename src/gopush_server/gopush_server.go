@@ -48,7 +48,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	svc := gopush.NewService(config)
+	svc := gopush.NewService(config, gopush.NewMySQLBackend(config))
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

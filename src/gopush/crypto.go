@@ -5,10 +5,12 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+
+	"log"
 )
 
-func (svc *GoPushService) genKeyPair() (string, string, error) {
-	prikey, err := rsa.GenerateKey(rand.Reader, svc.keySize)
+func genKeyPair(keySize int) (string, string, error) {
+	prikey, err := rsa.GenerateKey(rand.Reader, keySize)
 	if err != nil {
 		return "", "", err
 	}
@@ -32,4 +34,15 @@ func (svc *GoPushService) genKeyPair() (string, string, error) {
 	})
 
 	return string(privateKeyPEM), string(publicKeyPEM), nil
+}
+
+func stringToPublicKey(pkey string) *rsa.PublicKey {
+	marshaled, _ := pem.Decode([]byte(pkey))
+	pubkey, err := x509.ParsePKIXPublicKey(marshaled.Bytes)
+	if err != nil {
+		log.Println(err.Error())
+		return nil
+	}
+
+	return pubkey.(*rsa.PublicKey)
 }

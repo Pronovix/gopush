@@ -33,7 +33,7 @@ func (svc *GoPushService) checkAuth(r *http.Request, body []byte) bool {
 
 	sig, _ := hex.DecodeString(signature)
 
-	pubkey := svc.getPublicKeyForMailAddress(mail)
+	pubkey := svc.backend.GetPublicKey(mail)
 
 	if pubkey == nil {
 		return false
