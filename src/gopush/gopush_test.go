@@ -15,6 +15,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"code.google.com/p/go.net/websocket"
 )
 
 const adminTemplateString = `
@@ -97,8 +99,12 @@ func getBaseConfig() Config {
 	}
 }
 
+func getRawPath(path, proto string) string {
+	return fmt.Sprintf("%s://localhost:%d/%s", proto, port, path)
+}
+
 func getPath(path string) string {
-	return fmt.Sprintf("http://localhost:%d/%s", port, path)
+	return getRawPath(path, "http")
 }
 
 func getBody(resp *http.Response) string {
@@ -228,7 +234,7 @@ func testNotificationCenterCreation(key *rsa.PrivateKey, t *testing.T) string {
 	return centername
 }
 
-func testNotificationWithPing(key *rsa.PrivateKey, t *testing.T, centername string, shouldSucceed bool) {
+func testNotificationSending(key *rsa.PrivateKey, t *testing.T, centername string, shouldSucceed bool) string {
 	var resp *http.Response
 	testmsg := genRandomHash(128)
 	resp = postService("notify?mail=test@example.com&center=" + centername, testmsg, key, t)
@@ -241,8 +247,13 @@ func testNotificationWithPing(key *rsa.PrivateKey, t *testing.T, centername stri
 		if resp.StatusCode == http.StatusOK {
 			t.Fatalf("Successfully sent notification.\n")
 		}
-		return
 	}
+
+	return testmsg
+}
+
+func testNotificationWithPing(key *rsa.PrivateKey, t *testing.T, centername string, shouldSucceed bool) {
+	testmsg := testNotificationSending(key, t, centername, shouldSucceed)
 
 	resp, err := http.DefaultClient.Get(getPath("ping?center=" + getCenterName("test@example.com", centername)))
 	if err != nil {
@@ -253,15 +264,42 @@ func testNotificationWithPing(key *rsa.PrivateKey, t *testing.T, centername stri
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("Failed to ping, code: %d\n", resp.StatusCode)
 		}
+
+		body := getBody(resp)
+		if body != testmsg {
+			t.Fatalf("Message retrieval through ping is failed. Expected: '%s', got: '%s'\n", testmsg, body)
+		}
 	} else {
 		if resp.StatusCode == http.StatusOK {
 			t.Fatalf("Ping succeeded.\n")
 		}
 	}
+}
 
-	body := getBody(resp)
-	if body != testmsg {
-		t.Fatalf("Message retrieval through ping is failed. Expected: '%s', got: '%s'\n", testmsg, body)
+func testNotificationWithWebsocket(key *rsa.PrivateKey, t *testing.T, centername string, shouldSucceed bool) {
+	// Connect to host with websockets
+	wsconn, err := websocket.Dial(getRawPath("listen?center=" + getCenterName("test@example.com", centername), "ws"), "", getPath(""))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testmsg := testNotificationSending(key, t, centername, shouldSucceed)
+
+	// The buffer needs to be bigger than the message, to make sure that a longer message won't get mistaken to the original.
+	// For example if the test message is "aaa" and the result would be "aaab"
+	buf := make([]byte, len(testmsg) + 1)
+	n, err := wsconn.Read(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wsconn.Close()
+
+	// The buffer is bigger, and the trailing bytes are not needed.
+	result := string(buf[:n])
+
+	if testmsg != result {
+		t.Fatalf("Message retrieval through websocket is failed. Expected: '%s', got: '%s'\n", testmsg, result)
 	}
 }
 
@@ -294,6 +332,7 @@ func fullFunctionalTest(t *testing.T) {
 	testAdminList(t)
 	centername := testNotificationCenterCreation(key, t)
 	testNotificationWithPing(key, t, centername, true)
+	testNotificationWithWebsocket(key, t, centername, true)
 	testNotificationCenterRemoval(key, t, centername)
 	testAdminRemove(t)
 	testAdminListEmpty(t)
