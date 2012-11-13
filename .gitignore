@@ -2,3 +2,4 @@ config.json
 src/code.google.com
 bin
 pkg
+src/gopush/test/mysql.json

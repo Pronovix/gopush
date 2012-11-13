@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"text/template"
 	"time"
@@ -394,15 +395,29 @@ func TestRedirectMainPage(t *testing.T) {
 }
 
 func TestMySQLFunctional(t *testing.T) {
-	if *dbuser == "" || *dbname == "" {
+	config := getBaseConfig()
+
+	if fileReachable("test/mysql.json") {
+		mysqlconf, err := ReadConfig("test/mysql.json")
+		if err == nil {
+			config.DBName = mysqlconf.DBName
+			config.DBUser = mysqlconf.DBUser
+			config.DBPass = mysqlconf.DBPass
+		} else {
+			t.Log(err)
+		}
+	}
+
+	if *dbuser != "" && *dbname != "" {
+		config.DBName = *dbname
+		config.DBUser = *dbuser
+		config.DBPass = *dbpass
+	}
+
+	if config.DBName == "" || config.DBUser == "" {
 		t.Logf("No MySQL user or database is given, skipping test.\n")
 		return
 	}
-
-	config := getBaseConfig()
-	config.DBName = *dbname
-	config.DBUser = *dbuser
-	config.DBPass = *dbpass
 
 	backend := NewMySQLBackend(config)
 
@@ -417,4 +432,9 @@ func TestMySQLFunctional(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+}
+
+func fileReachable(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
