@@ -4,8 +4,18 @@ import (
 	"crypto/rsa"
 	"database/sql"
 
+	"log"
+
 	_ "code.google.com/p/go-mysql-driver/mysql"
 )
+
+const mysql_create_database = "CREATE TABLE `APIToken` ( " +
+		"`Mail` varchar(255) NOT NULL, " +
+		"`PublicKey` text NOT NULL, " +
+		"`Admin` tinyint(1) NOT NULL DEFAULT '0', " +
+		"PRIMARY KEY (`Mail`) " +
+	") ENGINE=InnoDB DEFAULT CHARSET=utf8;"
+
 
 var userCache = make(map[string]*rsa.PublicKey)
 
@@ -23,7 +33,26 @@ func NewMySQLBackend(config Config) *MySQLBackend {
 	b.connection, err = sql.Open("mysql",
 		config.DBUser + ":" + config.DBPass + "@/" + config.DBName + "?charset=utf8")
 	if err != nil {
-		return nil
+		log.Fatal(err)
+	}
+
+	b.connection.Exec("SET NAMES utf8;")
+
+	// Check if the table is exists. If not, create it.
+	row := b.connection.QueryRow("SELECT COUNT(*) > 0 FROM information_schema.tables WHERE table_schema = ? AND table_name = ?", config.DBName, "APIToken")
+	var exists bool
+	if err = row.Scan(&exists); err != nil {
+		log.Fatal(err)
+	}
+
+	if exists {
+		log.Println("APIToken table exists.")
+	} else {
+		log.Println("APIToken table does not exists, creating.")
+		_, err = b.connection.Exec(mysql_create_database)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	return b
