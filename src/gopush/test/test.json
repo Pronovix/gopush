@@ -1,0 +1,15 @@
+{
+  "address": ":8080",
+  "dbname": "gopushn",
+  "dbuser": "gopushu",
+  "dbpass": "gopushp",
+  "certfile": "c",
+  "keyfile": "k",
+  "adminuser": "adminu",
+  "adminpass": "adminp",
+  "timeout": 60,
+  "usercache": true,
+  "broadcastbuffer": 4096,
+  "extralogging": true,
+  "redirectmainpage": "redir"
+}

@@ -457,6 +457,65 @@ func TestMySQLFunctional(t *testing.T) {
 	})
 }
 
+func TestConfigReader(t *testing.T) {
+	conf, err := ReadConfig("test/test.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if conf.Address != ":8080" {
+		t.Fatalf("Invalid Address in JSON.\n")
+	}
+
+	if conf.DBUser != "gopushu" {
+		t.Fatalf("Invalid DBUser in JSON.\n")
+	}
+
+	if conf.DBPass != "gopushp" {
+		t.Fatalf("Invalid DBPass in JSON.\n")
+	}
+
+	if conf.DBName != "gopushn" {
+		t.Fatalf("Invalid DBName in JSON.\n")
+	}
+
+	if conf.CertFile != "c" {
+		t.Fatalf("Invalid CertFile in JSON.\n")
+	}
+
+	if conf.KeyFile != "k" {
+		t.Fatalf("Invalid KeyFile in JSON.\n")
+	}
+
+	if conf.AdminUser != "adminu" {
+		t.Fatalf("Invalid AdminUser in JSON.\n")
+	}
+
+	if conf.AdminPass != "adminp" {
+		t.Fatalf("Invalid AdminPass in JSON.\n")
+	}
+
+	if conf.Timeout != 60 {
+		t.Fatalf("Invalid Timeout in JSON.\n")
+	}
+
+	if !conf.UserCache {
+		t.Fatalf("Invalid UserCache in JSON.\n")
+	}
+
+	if conf.BroadcastBuffer != 4096 {
+		t.Fatalf("Invalid BroadcastBuffer in JSON.\n")
+	}
+
+	if !conf.ExtraLogging {
+		t.Fatalf("Invalid ExtraLogging in JSON.\n")
+	}
+
+	if conf.RedirectMainPage != "redir" {
+		t.Fatalf("Invalid RedirectMainPage in JSON.\n")
+	}
+}
+
 func fileReachable(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
