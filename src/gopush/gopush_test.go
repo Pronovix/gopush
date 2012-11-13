@@ -54,6 +54,12 @@ func startTimeoutDummyServer(t *testing.T) *GoPushService {
 	return startDummyServer(config, t)
 }
 
+func startRedirectingDummyServer(t *testing.T) *GoPushService {
+	config := getBaseConfig()
+	config.RedirectMainPage = "http://google.com"
+	return startDummyServer(config, t)
+}
+
 func getBaseConfig() Config {
 	return Config{
 		Address: fmt.Sprintf(":%d", port),
@@ -77,46 +83,58 @@ func getBody(resp *http.Response) string {
 	return string(respbody)
 }
 
-func getAdmin(path string) (*http.Response, error) {
+func getAdmin(path string, t *testing.T) *http.Response {
 	req, err := http.NewRequest("GET", getPath(path), nil)
 	if err != nil {
-		return nil, err
+		t.Fatal(err)
 	}
 
 	req.SetBasicAuth(adminUser, adminPass)
 
-	return http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return resp
 }
 
-func postAdmin(path string, body string) (*http.Response, error) {
+func postAdmin(path string, body string, t *testing.T) *http.Response {
 	req, err := http.NewRequest("POST", getPath(path), strings.NewReader(body))
 	if err != nil {
-		return nil, err
+		t.Fatal(err)
 	}
 
 	req.SetBasicAuth(adminUser, adminPass)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	return http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return resp
 }
 
-func postService(path string, body string, key *rsa.PrivateKey) (*http.Response, error) {
+func postService(path string, body string, key *rsa.PrivateKey, t *testing.T) *http.Response {
 	req, err := http.NewRequest("POST", getPath(path), strings.NewReader(body))
 	if err != nil {
-		return nil, err
+		t.Fatal(err)
 	}
 
 	signature := sign(body, key)
 	req.Header.Set("Authorization", "GoPush " + signature)
 
-	return http.DefaultClient.Do(req)
-}
-
-func getAdminMainPage(t *testing.T) adminPageData {
-	resp, err := getAdmin("admin")
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	return resp
+}
+
+func getAdminMainPage(t *testing.T) adminPageData {
+	resp := getAdmin("admin", t)
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("Invalid response returned from /admin, status code: %d\n", resp.StatusCode)
@@ -125,7 +143,7 @@ func getAdminMainPage(t *testing.T) adminPageData {
 	body := getBody(resp)
 
 	var page adminPageData
-	err = json.Unmarshal([]byte(body), &page)
+	err := json.Unmarshal([]byte(body), &page)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,10 +154,8 @@ func getAdminMainPage(t *testing.T) adminPageData {
 func testAdminAdd(mail string, t *testing.T) *rsa.PrivateKey {
 	page := getAdminMainPage(t)
 
-	resp, err := postAdmin("admin/add", fmt.Sprintf("mail=test@example.com&publickey=&nonce=%s&formid=%s", page.Nonce, page.FormID))
-	if err != nil {
-		t.Fatal(err)
-	}
+	resp := postAdmin("admin/add", fmt.Sprintf("mail=test@example.com&publickey=&nonce=%s&formid=%s", page.Nonce, page.FormID), t)
+
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("Failed to add new user, status code: %d\n", resp.StatusCode)
@@ -163,10 +179,7 @@ func testAdminList(t *testing.T) {
 func testAdminRemove(t *testing.T) {
 	page := getAdminMainPage(t)
 
-	resp, err := postAdmin("admin/remove", fmt.Sprintf("mail=test@example.com&nonce=%s&formid=%s", page.Nonce, page.FormID))
-	if err != nil {
-		t.Fatal(err)
-	}
+	resp:= postAdmin("admin/remove", fmt.Sprintf("mail=test@example.com&nonce=%s&formid=%s", page.Nonce, page.FormID), t)
 
 	if resp.StatusCode != http.StatusFound { // The delete page redirects.
 		t.Fatalf("Failed to remove account, code: %d\n", resp.StatusCode)
@@ -181,10 +194,7 @@ func testAdminListEmpty(t *testing.T) {
 }
 
 func testNotificationCenterCreation(key *rsa.PrivateKey, t *testing.T) {
-	resp, err := postService("newcenter?mail=test@example.com", "test", key)
-	if err != nil {
-		t.Fatal(err)
-	}
+	resp:= postService("newcenter?mail=test@example.com", "test", key, t)
 
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("Failed to create notification center, code: %d\n", resp.StatusCode)
@@ -192,11 +202,9 @@ func testNotificationCenterCreation(key *rsa.PrivateKey, t *testing.T) {
 }
 
 func testNotificationWithPing(key *rsa.PrivateKey, t *testing.T, shouldSucceed bool) {
+	var resp *http.Response
 	testmsg := genRandomHash(128)
-	resp, err := postService("notify?mail=test@example.com&center=test", testmsg, key)
-	if err != nil {
-		t.Fatal(err)
-	}
+	resp = postService("notify?mail=test@example.com&center=test", testmsg, key, t)
 
 	if shouldSucceed {
 		if resp.StatusCode != http.StatusOK {
@@ -209,7 +217,7 @@ func testNotificationWithPing(key *rsa.PrivateKey, t *testing.T, shouldSucceed b
 		return
 	}
 
-	resp, err = http.DefaultClient.Get(getPath("ping?center=" + getCenterName("test@example.com", "test")))
+	resp, err := http.DefaultClient.Get(getPath("ping?center=" + getCenterName("test@example.com", "test")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,16 +239,16 @@ func testNotificationWithPing(key *rsa.PrivateKey, t *testing.T, shouldSucceed b
 }
 
 func testNotificationCenterRemoval(key *rsa.PrivateKey, t *testing.T) {
-	resp, err := postService("removecenter?mail=test@example.com", "test", key)
-	if err != nil {
-		t.Fatal(err)
-	}
+	var resp *http.Response
+
+	resp = postService("removecenter?mail=test@example.com", "test", key, t)
+
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("Failed to remove notification center, code: %d\n", resp.StatusCode)
 	}
 
-	resp, err = http.DefaultClient.Get(getPath("ping?center=" + getCenterName("test@example.com", "test")))
+	resp, err := http.DefaultClient.Get(getPath("ping?center=" + getCenterName("test@example.com", "test")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,8 +272,8 @@ func fullFunctionalTest(t *testing.T) {
 	testAdminListEmpty(t)
 }
 
-func TestBasicFunctional(t *testing.T) {
-	svc := startBasicDummyServer(t)
+func testWithServer(startfunc func(*testing.T)*GoPushService, t *testing.T, test func(*testing.T)) {
+	svc := startfunc(t)
 	if svc == nil {
 		t.Fatal(svc)
 	}
@@ -274,27 +282,37 @@ func TestBasicFunctional(t *testing.T) {
 		port++
 	}()
 	<-time.After(2 * time.Second)
-	
-	fullFunctionalTest(t)
+
+	test(t)
+}
+
+func TestBasicFunctional(t *testing.T) {
+	testWithServer(startBasicDummyServer, t, fullFunctionalTest)
 }
 
 func TestTimeoutFunctional(t *testing.T) {
-	svc := startTimeoutDummyServer(t)
-	if svc == nil {
-		t.Fatal(svc)
-	}
-	defer func() {
-		svc.Stop()
-		port++
-	}()
-	<-time.After(2 * time.Second)
+	testWithServer(startTimeoutDummyServer, t, func (t *testing.T) {
+		key := testAdminAdd("test@example.com", t)
+		if key == nil {
+			t.Fatal("Invalid key")
+		}
 
-	key := testAdminAdd("test@example.com", t)
-	if key == nil {
-		t.Fatal("Invalid key")
-	}
+		testNotificationCenterCreation(key, t)
+		<-time.After(2 * time.Second)
+		testNotificationWithPing(key, t, false)
+	})
+}
 
-	testNotificationCenterCreation(key, t)
-	<-time.After(2 * time.Second)
-	testNotificationWithPing(key, t, false)
+func TestRedirectMainPage(t *testing.T) {
+	testWithServer(startRedirectingDummyServer, t, func(*testing.T) {
+		resp, err := http.DefaultClient.Get(getPath(""))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// If the redirection is not set, the main page is http.StatusNotFound.
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("Redirection is failed. Code: %d\n", resp.StatusCode)
+		}
+	})
 }
