@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"text/template"
 
 	"code.google.com/p/go.net/websocket"
 
@@ -14,18 +13,19 @@ import (
 )
 
 type GoPushService struct {
-	keySize 	int
-	authName 	string
-	lastState 	map[string]string
-	config 		Config
-	adminCreds 	string
-	server 		*http.Server
-	hubs 		map[string]*wshub
-	listener	net.Listener
-	backend 	Backend
+	keySize 		int
+	authName 		string
+	lastState 		map[string]string
+	config 			Config
+	adminCreds 		string
+	server 			*http.Server
+	hubs 			map[string]*wshub
+	listener		net.Listener
+	backend 		Backend
+	outputmanager 	OutputManager
 }
 
-func NewService(config Config, backend Backend) *GoPushService {
+func NewService(config Config, backend Backend, outputmanager OutputManager) *GoPushService {
 	mux := http.NewServeMux()
 
 	instance := &GoPushService{
@@ -40,6 +40,7 @@ func NewService(config Config, backend Backend) *GoPushService {
 		hubs: make(map[string]*wshub),
 		backend: backend,
 		listener: nil,
+		outputmanager: outputmanager,
 	}
 
 	instance.config = config
@@ -84,9 +85,6 @@ func NewService(config Config, backend Backend) *GoPushService {
 
 	return instance
 }
-
-var adminPage = template.Must(template.ParseFiles("admin.html"))
-var adminAddGenPriKeyPage = template.Must(template.ParseFiles("adminaddgenprikey.html"))
 
 // TODO refactor the SQL queries related to this structure into nice methods
 type APIToken struct {

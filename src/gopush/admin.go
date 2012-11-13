@@ -11,17 +11,6 @@ import (
 
 var nonces = make(map[string]nonceData)
 
-type adminAdd struct {
-	Mail 	string
-	Key 	string
-}
-
-type adminPageData struct {
-	APITokens 	[]APIToken
-	Nonce 		string
-	FormID		string
-}
-
 type nonceData struct {
 	nonce string
 	timer *time.Timer
@@ -105,7 +94,7 @@ func (svc *GoPushService) handleAdmin(w http.ResponseWriter, r *http.Request) {
 		serveError(w, err)
 	}
 
-	if err := adminPage.Execute(w, &adminPageData{Nonce: nonce, FormID: formid, APITokens: at}); err != nil {
+	if err := svc.outputmanager.renderAdminPage(w, &adminPageData{Nonce: nonce, FormID: formid, APITokens: at}); err != nil {
 		serveError(w, err)
 		return
 	}
@@ -156,11 +145,9 @@ func (svc *GoPushService) handleAdminAdd(w http.ResponseWriter, r *http.Request)
 	if privateKey == "" {
 		http.Redirect(w, r, "/admin", http.StatusFound)
 	} else {
-		data := &adminAdd{
-			Mail: r.FormValue("mail"),
-			Key: privateKey,
+		if err := svc.outputmanager.renderAdminAddPage(w, &adminAdd{Mail: r.FormValue("mail"), Key: privateKey}); err != nil {
+			serveError(w, err)
 		}
-		adminAddGenPriKeyPage.Execute(w, data)
 	}
 }
 

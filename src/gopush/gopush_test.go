@@ -13,8 +13,27 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"text/template"
 	"time"
 )
+
+const adminTemplateString = `
+{
+	"formID": "{{.FormID}}",
+	"nonce": "{{.Nonce}}",
+	"apitokens" : [
+	{{range .APITokens}}
+	{
+		"mail": "{{.Mail}}",
+		"pubkey": "{{.PublicKey|js}}"
+	},
+	{{end}}
+	{}
+	]
+}
+`
+
+const adminAddTemplateString = `{{.Key}}`
 
 var port = 18080
 const adminUser = "admin"
@@ -34,7 +53,12 @@ func sign(data string, prikey *rsa.PrivateKey) string {
 }
 
 func startDummyServer(config Config, t *testing.T) *GoPushService {
-	svc := NewService(config, NewDummyBackend())
+	admintpl, _ := template.New("admin").Parse(adminTemplateString)
+	adminaddtpl, _ := template.New("adminadd").Parse(adminAddTemplateString)
+	svc := NewService(config, NewDummyBackend(), &StandardOutputManager{
+		AdminTemplate: admintpl,
+		AdminAddTemplate: adminaddtpl,
+	})
 	if svc == nil {
 		return nil
 	}
