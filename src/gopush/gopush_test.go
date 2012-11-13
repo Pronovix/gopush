@@ -394,6 +394,29 @@ func TestRedirectMainPage(t *testing.T) {
 	})
 }
 
+func TestTestFunction(t *testing.T) {
+	testWithServer(startBasicDummyServer, t, func(t *testing.T) {
+		key := testAdminAdd("test@example.com", t)
+		if key == nil {
+			t.Fatal("Invalid key")
+		}
+
+		testmsg := genRandomHash(128)
+
+		resp := postService("test?mail=test@example.com", testmsg, key, t)
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("Failed to reach test service. Code: %d\n", resp.StatusCode)
+		}
+
+		respbody := getBody(resp)
+
+		if testmsg != respbody {
+			t.Fatalf("Test service result is valid. Expected: '%s', got: '%s'\n", testmsg, respbody)
+		}
+	})
+}
+
 func TestMySQLFunctional(t *testing.T) {
 	config := getBaseConfig()
 
