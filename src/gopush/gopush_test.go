@@ -10,6 +10,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -41,6 +42,12 @@ var port = 18080
 const adminUser = "admin"
 const adminPass = "admin"
 
+var (
+	dbuser = flag.String("mysqluser", "", "MySQL username.")
+	dbpass = flag.String("mysqlpass", "", "MySQL Password.")
+	dbname = flag.String("mysqldbname", "", "MySQL database name.")
+)
+
 func sign(data string, prikey *rsa.PrivateKey) string {
 	h := sha1.New()
 	h.Write([]byte(data))
@@ -55,9 +62,13 @@ func sign(data string, prikey *rsa.PrivateKey) string {
 }
 
 func startDummyServer(config Config, t *testing.T) *GoPushService {
+	return startServer(config, NewDummyBackend(), t)
+}
+
+func startServer(config Config, backend Backend, t *testing.T) *GoPushService {
 	admintpl, _ := template.New("admin").Parse(adminTemplateString)
 	adminaddtpl, _ := template.New("adminadd").Parse(adminAddTemplateString)
-	svc := NewService(config, NewDummyBackend(), &StandardOutputManager{
+	svc := NewService(config, backend, &StandardOutputManager{
 		AdminTemplate: admintpl,
 		AdminAddTemplate: adminaddtpl,
 	})
@@ -379,6 +390,32 @@ func TestRedirectMainPage(t *testing.T) {
 		// If the redirection is not set, the main page is http.StatusNotFound.
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("Redirection is failed. Code: %d\n", resp.StatusCode)
+		}
+	})
+}
+
+func TestMySQLFunctional(t *testing.T) {
+	if *dbuser == "" || *dbname == "" {
+		t.Logf("No MySQL user or database is given, skipping test.\n")
+		return
+	}
+
+	config := getBaseConfig()
+	config.DBName = *dbname
+	config.DBUser = *dbuser
+	config.DBPass = *dbpass
+
+	backend := NewMySQLBackend(config)
+
+	serverStarter := func (t *testing.T) *GoPushService {
+		return startServer(config, backend, t)
+	}
+
+	testWithServer(serverStarter, t, func (t *testing.T) {
+		fullFunctionalTest(t)
+		_, err := backend.connection.Exec("DROP TABLE APIToken")
+		if err != nil {
+			t.Fatal(err)
 		}
 	})
 }
