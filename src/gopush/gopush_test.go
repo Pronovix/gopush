@@ -217,18 +217,21 @@ func testAdminListEmpty(t *testing.T) {
 	}
 }
 
-func testNotificationCenterCreation(key *rsa.PrivateKey, t *testing.T) {
-	resp:= postService("newcenter?mail=test@example.com", "test", key, t)
+func testNotificationCenterCreation(key *rsa.PrivateKey, t *testing.T) string {
+	centername := genRandomHash(128)
+	resp:= postService("newcenter?mail=test@example.com", centername, key, t)
 
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("Failed to create notification center, code: %d\n", resp.StatusCode)
 	}
+
+	return centername
 }
 
-func testNotificationWithPing(key *rsa.PrivateKey, t *testing.T, shouldSucceed bool) {
+func testNotificationWithPing(key *rsa.PrivateKey, t *testing.T, centername string, shouldSucceed bool) {
 	var resp *http.Response
 	testmsg := genRandomHash(128)
-	resp = postService("notify?mail=test@example.com&center=test", testmsg, key, t)
+	resp = postService("notify?mail=test@example.com&center=" + centername, testmsg, key, t)
 
 	if shouldSucceed {
 		if resp.StatusCode != http.StatusOK {
@@ -241,7 +244,7 @@ func testNotificationWithPing(key *rsa.PrivateKey, t *testing.T, shouldSucceed b
 		return
 	}
 
-	resp, err := http.DefaultClient.Get(getPath("ping?center=" + getCenterName("test@example.com", "test")))
+	resp, err := http.DefaultClient.Get(getPath("ping?center=" + getCenterName("test@example.com", centername)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,17 +265,17 @@ func testNotificationWithPing(key *rsa.PrivateKey, t *testing.T, shouldSucceed b
 	}
 }
 
-func testNotificationCenterRemoval(key *rsa.PrivateKey, t *testing.T) {
+func testNotificationCenterRemoval(key *rsa.PrivateKey, t *testing.T, centername string) {
 	var resp *http.Response
 
-	resp = postService("removecenter?mail=test@example.com", "test", key, t)
+	resp = postService("removecenter?mail=test@example.com", centername, key, t)
 
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("Failed to remove notification center, code: %d\n", resp.StatusCode)
 	}
 
-	resp, err := http.DefaultClient.Get(getPath("ping?center=" + getCenterName("test@example.com", "test")))
+	resp, err := http.DefaultClient.Get(getPath("ping?center=" + getCenterName("test@example.com", centername)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,9 +292,9 @@ func fullFunctionalTest(t *testing.T) {
 	}
 
 	testAdminList(t)
-	testNotificationCenterCreation(key, t)
-	testNotificationWithPing(key, t, true)
-	testNotificationCenterRemoval(key, t)
+	centername := testNotificationCenterCreation(key, t)
+	testNotificationWithPing(key, t, centername, true)
+	testNotificationCenterRemoval(key, t, centername)
 	testAdminRemove(t)
 	testAdminListEmpty(t)
 }
@@ -321,9 +324,9 @@ func TestTimeoutFunctional(t *testing.T) {
 			t.Fatal("Invalid key")
 		}
 
-		testNotificationCenterCreation(key, t)
+		centername := testNotificationCenterCreation(key, t)
 		<-time.After(2 * time.Second)
-		testNotificationWithPing(key, t, false)
+		testNotificationWithPing(key, t, centername, false)
 	})
 }
 
