@@ -63,7 +63,7 @@ func doPost(addr, body string) {
 
 	log.Printf("BODY: %s\nSignature: %s\n", body, signature)
 
-	req.Header.Set("Authorization", "GoPush " + signature)
+	req.Header.Set("Authorization", "GoPush "+signature)
 
 	var resp *http.Response
 	var client *http.Client
@@ -76,7 +76,7 @@ func doPost(addr, body string) {
 			Transport: tr,
 		}
 	} else {
-		client = http.DefaultClient		
+		client = http.DefaultClient
 	}
 
 	resp, err = client.Do(req)
@@ -92,7 +92,7 @@ func doPost(addr, body string) {
 
 func main() {
 	flag.Parse()
-	loadPrivateKey()	
+	loadPrivateKey()
 
 	if *mail == "" {
 		log.Fatal("Mail must be set")
@@ -102,24 +102,24 @@ func main() {
 		log.Fatal("centername must be set")
 	}
 
-	switch *action{
-		case "new":
-			doPost(*addr + "/newcenter?mail=" + *mail, *centername)
-		case "remove":
-			doPost(*addr + "/removecenter?mail=" + *mail, *centername)
-		case "notify":
-			if *message == "" {
-				log.Fatal("message must be set")
-			}
+	switch *action {
+	case "new":
+		doPost(*addr+"/newcenter?mail="+*mail, *centername)
+	case "remove":
+		doPost(*addr+"/removecenter?mail="+*mail, *centername)
+	case "notify":
+		if *message == "" {
+			log.Fatal("message must be set")
+		}
 
-			doPost(*addr + "/notify?mail=" + *mail + "&center=" + *centername, *message)
-		case "test":
-			if *message == "" {
-				log.Fatal("message must be set")
-			}
+		doPost(*addr+"/notify?mail="+*mail+"&center="+*centername, *message)
+	case "test":
+		if *message == "" {
+			log.Fatal("message must be set")
+		}
 
-			doPost(*addr + "/test?mail=" + *mail, *message)
-		default:
-			log.Fatal("invalid action")
+		doPost(*addr+"/test?mail="+*mail, *message)
+	default:
+		log.Fatal("invalid action")
 	}
 }

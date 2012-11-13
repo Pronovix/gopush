@@ -49,7 +49,7 @@ func (svc *GoPushService) checkNonce(r *http.Request) bool {
 		nonce.timer.Stop()
 		return nonce.nonce != "" && nonce.nonce == r.FormValue("nonce")
 	}
-	
+
 	return false
 }
 
@@ -57,7 +57,7 @@ func (svc *GoPushService) ensureNonce(formid string) string {
 	nonce := genNonce()
 
 	// Automatically delete nonces after one day
-	timer := time.AfterFunc(time.Hour * 24, func () {
+	timer := time.AfterFunc(time.Hour*24, func() {
 		delete(nonces, formid)
 	})
 
@@ -67,7 +67,7 @@ func (svc *GoPushService) ensureNonce(formid string) string {
 }
 
 func (svc *GoPushService) checkAdminAuth(w http.ResponseWriter, r *http.Request) bool {
-	if auth := r.Header.Get("Authorization"); auth != "Basic " + svc.adminCreds {
+	if auth := r.Header.Get("Authorization"); auth != "Basic "+svc.adminCreds {
 		w.Header().Set("WWW-Authenticate", "Basic realm=\"GoPushNotification admin page\"")
 		w.WriteHeader(http.StatusUnauthorized)
 		return false
@@ -133,9 +133,9 @@ func (svc *GoPushService) handleAdminAdd(w http.ResponseWriter, r *http.Request)
 	}
 
 	t := &APIToken{
-		Mail: r.FormValue("mail"),
+		Mail:      r.FormValue("mail"),
 		PublicKey: publicKey,
-		Admin: false,
+		Admin:     false,
 	}
 
 	if err := svc.backend.Add(t); err != nil {

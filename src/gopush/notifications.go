@@ -2,13 +2,13 @@ package gopush
 
 import (
 	"crypto"
-	"crypto/sha1"
 	"crypto/rsa"
+	"crypto/sha1"
 	"encoding/hex"
-	"net/http"
-	"net/url"
 	"io"
 	"io/ioutil"
+	"net/http"
+	"net/url"
 	"time"
 
 	"log"

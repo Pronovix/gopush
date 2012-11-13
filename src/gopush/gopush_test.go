@@ -3,7 +3,6 @@ package gopush
 import "testing"
 
 import (
-	"fmt"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -11,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -39,6 +39,7 @@ const adminTemplateString = `
 const adminAddTemplateString = `{{.Key}}`
 
 var port = 18080
+
 const adminUser = "admin"
 const adminPass = "admin"
 
@@ -69,7 +70,7 @@ func startServer(config Config, backend Backend, t *testing.T) *GoPushService {
 	admintpl, _ := template.New("admin").Parse(adminTemplateString)
 	adminaddtpl, _ := template.New("adminadd").Parse(adminAddTemplateString)
 	svc := NewService(config, backend, &StandardOutputManager{
-		AdminTemplate: admintpl,
+		AdminTemplate:    admintpl,
 		AdminAddTemplate: adminaddtpl,
 	})
 	if svc == nil {
@@ -99,13 +100,13 @@ func startRedirectingDummyServer(t *testing.T) *GoPushService {
 
 func getBaseConfig() Config {
 	return Config{
-		Address: fmt.Sprintf(":%d", port),
-		AdminUser: adminUser,
-		AdminPass: adminPass,
-		Timeout: 0,
-		UserCache: true,
-		BroadcastBuffer: 4096,
-		ExtraLogging: false,
+		Address:          fmt.Sprintf(":%d", port),
+		AdminUser:        adminUser,
+		AdminPass:        adminPass,
+		Timeout:          0,
+		UserCache:        true,
+		BroadcastBuffer:  4096,
+		ExtraLogging:     false,
 		RedirectMainPage: "",
 	}
 }
@@ -164,7 +165,7 @@ func postService(path string, body string, key *rsa.PrivateKey, t *testing.T) *h
 	}
 
 	signature := sign(body, key)
-	req.Header.Set("Authorization", "GoPush " + signature)
+	req.Header.Set("Authorization", "GoPush "+signature)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -197,7 +198,6 @@ func testAdminAdd(mail string, t *testing.T) *rsa.PrivateKey {
 
 	resp := postAdmin("admin/add", fmt.Sprintf("mail=test@example.com&publickey=&nonce=%s&formid=%s", page.Nonce, page.FormID), t)
 
-
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("Failed to add new user, status code: %d\n", resp.StatusCode)
 	}
@@ -220,7 +220,7 @@ func testAdminList(t *testing.T) {
 func testAdminRemove(t *testing.T) {
 	page := getAdminMainPage(t)
 
-	resp:= postAdmin("admin/remove", fmt.Sprintf("mail=test@example.com&nonce=%s&formid=%s", page.Nonce, page.FormID), t)
+	resp := postAdmin("admin/remove", fmt.Sprintf("mail=test@example.com&nonce=%s&formid=%s", page.Nonce, page.FormID), t)
 
 	if resp.StatusCode != http.StatusFound { // The delete page redirects.
 		t.Fatalf("Failed to remove account, code: %d\n", resp.StatusCode)
@@ -230,13 +230,13 @@ func testAdminRemove(t *testing.T) {
 func testAdminListEmpty(t *testing.T) {
 	page := getAdminMainPage(t)
 	if len(page.APITokens) > 1 { // An empty item is there at the end because of a JSON serialization hack.
-		t.Fatalf("The account list is not empty. Number of items: %d\n", len(page.APITokens) - 1)
+		t.Fatalf("The account list is not empty. Number of items: %d\n", len(page.APITokens)-1)
 	}
 }
 
 func testNotificationCenterCreation(key *rsa.PrivateKey, t *testing.T) string {
 	centername := genRandomHash(128)
-	resp:= postService("newcenter?mail=test@example.com", centername, key, t)
+	resp := postService("newcenter?mail=test@example.com", centername, key, t)
 
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("Failed to create notification center, code: %d\n", resp.StatusCode)
@@ -248,7 +248,7 @@ func testNotificationCenterCreation(key *rsa.PrivateKey, t *testing.T) string {
 func testNotificationSending(key *rsa.PrivateKey, t *testing.T, centername string, shouldSucceed bool) string {
 	var resp *http.Response
 	testmsg := genRandomHash(128)
-	resp = postService("notify?mail=test@example.com&center=" + centername, testmsg, key, t)
+	resp = postService("notify?mail=test@example.com&center="+centername, testmsg, key, t)
 
 	if shouldSucceed {
 		if resp.StatusCode != http.StatusOK {
@@ -289,7 +289,7 @@ func testNotificationWithPing(key *rsa.PrivateKey, t *testing.T, centername stri
 
 func testNotificationWithWebsocket(key *rsa.PrivateKey, t *testing.T, centername string, shouldSucceed bool) {
 	// Connect to host with websockets
-	wsconn, err := websocket.Dial(getRawPath("listen?center=" + getCenterName("test@example.com", centername), "ws"), "", getPath(""))
+	wsconn, err := websocket.Dial(getRawPath("listen?center="+getCenterName("test@example.com", centername), "ws"), "", getPath(""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,7 +298,7 @@ func testNotificationWithWebsocket(key *rsa.PrivateKey, t *testing.T, centername
 
 	// The buffer needs to be bigger than the message, to make sure that a longer message won't get mistaken to the original.
 	// For example if the test message is "aaa" and the result would be "aaab"
-	buf := make([]byte, len(testmsg) + 1)
+	buf := make([]byte, len(testmsg)+1)
 	n, err := wsconn.Read(buf)
 	if err != nil {
 		t.Fatal(err)
@@ -318,7 +318,6 @@ func testNotificationCenterRemoval(key *rsa.PrivateKey, t *testing.T, centername
 	var resp *http.Response
 
 	resp = postService("removecenter?mail=test@example.com", centername, key, t)
-
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("Failed to remove notification center, code: %d\n", resp.StatusCode)
@@ -349,7 +348,7 @@ func fullFunctionalTest(t *testing.T) {
 	testAdminListEmpty(t)
 }
 
-func testWithServer(startfunc func(*testing.T)*GoPushService, t *testing.T, test func(*testing.T)) {
+func testWithServer(startfunc func(*testing.T) *GoPushService, t *testing.T, test func(*testing.T)) {
 	svc := startfunc(t)
 	if svc == nil {
 		t.Fatal(svc)
@@ -368,7 +367,7 @@ func TestBasicFunctional(t *testing.T) {
 }
 
 func TestTimeoutFunctional(t *testing.T) {
-	testWithServer(startTimeoutDummyServer, t, func (t *testing.T) {
+	testWithServer(startTimeoutDummyServer, t, func(t *testing.T) {
 		key := testAdminAdd("test@example.com", t)
 		if key == nil {
 			t.Fatal("Invalid key")
@@ -407,11 +406,11 @@ func TestMySQLFunctional(t *testing.T) {
 
 	backend := NewMySQLBackend(config)
 
-	serverStarter := func (t *testing.T) *GoPushService {
+	serverStarter := func(t *testing.T) *GoPushService {
 		return startServer(config, backend, t)
 	}
 
-	testWithServer(serverStarter, t, func (t *testing.T) {
+	testWithServer(serverStarter, t, func(t *testing.T) {
 		fullFunctionalTest(t)
 		_, err := backend.connection.Exec("DROP TABLE APIToken")
 		if err != nil {

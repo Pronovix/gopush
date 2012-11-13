@@ -7,15 +7,15 @@ import (
 )
 
 type wsconnection struct {
-	conn 		*websocket.Conn
-	send 		chan string
-	writequit	chan bool
-	hub			*wshub
-	verbose		bool
+	conn      *websocket.Conn
+	send      chan string
+	writequit chan bool
+	hub       *wshub
+	verbose   bool
 }
 
 func (c *wsconnection) reader() {
-	defer func () {
+	defer func() {
 		c.quit()
 		if c.verbose {
 			log.Println("Closing reader goroutine.")
@@ -32,7 +32,7 @@ func (c *wsconnection) reader() {
 }
 
 func (c *wsconnection) writer() {
-	defer func () {
+	defer func() {
 		if c.verbose {
 			log.Println("Closing connection.")
 		}
@@ -63,11 +63,11 @@ func (c *wsconnection) quit() {
 
 func wsHandler(conn *websocket.Conn, h *wshub, verbose bool) {
 	c := &wsconnection{
-		send: make(chan string, 256),
-		conn: conn,
-		hub: h,
+		send:      make(chan string, 256),
+		conn:      conn,
+		hub:       h,
 		writequit: make(chan bool),
-		verbose: verbose,
+		verbose:   verbose,
 	}
 	c.hub.register <- c
 	defer func() { c.hub.unregister <- c }()

@@ -22,15 +22,15 @@ func genKeyPair(keySize int) (string, string, error) {
 	}
 
 	privateKeyPEM := pem.EncodeToMemory(&pem.Block{
-		Type: "RSA PRIVATE KEY",
+		Type:    "RSA PRIVATE KEY",
 		Headers: nil,
-		Bytes: marshaled,
+		Bytes:   marshaled,
 	})
 
 	publicKeyPEM := pem.EncodeToMemory(&pem.Block{
-		Type: "RSA PUBLIC KEY",
+		Type:    "RSA PUBLIC KEY",
 		Headers: nil,
-		Bytes: marshaledPublic,
+		Bytes:   marshaledPublic,
 	})
 
 	return string(privateKeyPEM), string(publicKeyPEM), nil

@@ -16,7 +16,7 @@ var secure = flag.Bool("secure", false, "The server is using HTTPS and WSS.")
 
 type templateData struct {
 	Address string
-	Secure 	bool
+	Secure  bool
 }
 
 func main() {
@@ -24,10 +24,10 @@ func main() {
 
 	data := &templateData{
 		Address: *address,
-		Secure: *secure,
+		Secure:  *secure,
 	}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { indexTemplate.Execute(w , data) })
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { indexTemplate.Execute(w, data) })
 	if err := http.ListenAndServe(*addr, nil); err != nil {
 		log.Fatal(err)
 	}

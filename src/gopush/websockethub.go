@@ -5,21 +5,21 @@ import (
 )
 
 type wshub struct {
-	connections 	map[*wsconnection]bool
-	broadcast 		chan string
-	register		chan *wsconnection
-	unregister		chan *wsconnection
-	quit			chan bool
-	verbose			bool
+	connections map[*wsconnection]bool
+	broadcast   chan string
+	register    chan *wsconnection
+	unregister  chan *wsconnection
+	quit        chan bool
+	verbose     bool
 }
 
 func newWSHub(broadcastBuffer int64) *wshub {
 	return &wshub{
-		connections: 	make(map[*wsconnection]bool),
-		broadcast: 		make(chan string, broadcastBuffer),
-		register:		make(chan *wsconnection),
-		unregister:		make(chan *wsconnection),
-		quit:			make(chan bool),
+		connections: make(map[*wsconnection]bool),
+		broadcast:   make(chan string, broadcastBuffer),
+		register:    make(chan *wsconnection),
+		unregister:  make(chan *wsconnection),
+		quit:        make(chan bool),
 	}
 }
 

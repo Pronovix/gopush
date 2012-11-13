@@ -17,7 +17,6 @@ func (svc *GoPushService) handlePing(w http.ResponseWriter, r *http.Request) {
 	center := v.Get("center")
 	callback := v.Get("callback") // For JSONP
 
-
 	if _, ok := svc.lastState[center]; center == "" || !ok {
 		serve404(w)
 		return
@@ -31,6 +30,6 @@ func (svc *GoPushService) handlePing(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		marshaled, _ := json.Marshal(svc.lastState[center])
-		io.WriteString(w, callback + "(" + string(marshaled) + ");")
+		io.WriteString(w, callback+"("+string(marshaled)+");")
 	}
 }

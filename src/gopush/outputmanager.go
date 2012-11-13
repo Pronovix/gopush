@@ -5,14 +5,14 @@ import (
 )
 
 type adminAdd struct {
-	Mail 	string
-	Key 	string
+	Mail string
+	Key  string
 }
 
 type adminPageData struct {
-	APITokens 	[]APIToken
-	Nonce 		string
-	FormID		string
+	APITokens []APIToken
+	Nonce     string
+	FormID    string
 }
 
 type OutputManager interface {

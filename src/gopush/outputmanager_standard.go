@@ -6,8 +6,8 @@ import (
 )
 
 type StandardOutputManager struct {
-	AdminTemplate 		*template.Template
-	AdminAddTemplate	*template.Template
+	AdminTemplate    *template.Template
+	AdminAddTemplate *template.Template
 }
 
 func NewStandardTemplateStoreInWorkingDir() *StandardOutputManager {
@@ -16,7 +16,7 @@ func NewStandardTemplateStoreInWorkingDir() *StandardOutputManager {
 
 func NewStandardTemplateStore(path string) *StandardOutputManager {
 	return &StandardOutputManager{
-		AdminTemplate: template.Must(template.ParseFiles(path + "/admin.html")),
+		AdminTemplate:    template.Must(template.ParseFiles(path + "/admin.html")),
 		AdminAddTemplate: template.Must(template.ParseFiles(path + "/adminaddgenprikey.html")),
 	}
 }

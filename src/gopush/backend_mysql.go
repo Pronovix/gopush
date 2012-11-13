@@ -10,17 +10,16 @@ import (
 )
 
 const mysql_create_database = "CREATE TABLE `APIToken` ( " +
-		"`Mail` varchar(255) NOT NULL, " +
-		"`PublicKey` text NOT NULL, " +
-		"`Admin` tinyint(1) NOT NULL DEFAULT '0', " +
-		"PRIMARY KEY (`Mail`) " +
+	"`Mail` varchar(255) NOT NULL, " +
+	"`PublicKey` text NOT NULL, " +
+	"`Admin` tinyint(1) NOT NULL DEFAULT '0', " +
+	"PRIMARY KEY (`Mail`) " +
 	") ENGINE=InnoDB DEFAULT CHARSET=utf8;"
-
 
 var userCache = make(map[string]*rsa.PublicKey)
 
 type MySQLBackend struct {
-	connection 	*sql.DB
+	connection  *sql.DB
 	userCache   map[string]*rsa.PublicKey
 	enableCache bool
 }
@@ -31,7 +30,7 @@ func NewMySQLBackend(config Config) *MySQLBackend {
 	b.userCache = make(map[string]*rsa.PublicKey)
 	b.enableCache = config.UserCache
 	b.connection, err = sql.Open("mysql",
-		config.DBUser + ":" + config.DBPass + "@/" + config.DBName + "?charset=utf8")
+		config.DBUser+":"+config.DBPass+"@/"+config.DBName+"?charset=utf8")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -117,7 +116,7 @@ func (b *MySQLBackend) Add(t *APIToken) error {
 	return nil
 }
 
-func (b *MySQLBackend) Remove(mail string) error{
+func (b *MySQLBackend) Remove(mail string) error {
 	if b.enableCache {
 		delete(b.userCache, mail)
 	}

@@ -27,9 +27,9 @@ func (b *DummyBackend) GetAll() ([]APIToken, error) {
 
 	for mail, key := range b.data {
 		at = append(at, APIToken{
-			Mail: mail,
+			Mail:      mail,
 			PublicKey: key,
-			Admin: false,
+			Admin:     false,
 		})
 	}
 

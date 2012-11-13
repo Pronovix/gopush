@@ -27,7 +27,7 @@ func main() {
 	}
 
 	if *logFile != "" {
-		f, err := os.OpenFile(*logFile, os.O_CREATE | os.O_APPEND | os.O_RDWR, 0666)
+		f, err := os.OpenFile(*logFile, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 		if err != nil {
 			log.Fatalln(err.Error())
 		}
@@ -52,7 +52,7 @@ func main() {
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
-	go func () {
+	go func() {
 		for sig := range c {
 			svc.Stop()
 			log.Printf("Received signal %d, shutting down\n", sig)
