@@ -358,7 +358,7 @@ func testWithServer(startfunc func(*testing.T) *GoPushService, t *testing.T, tes
 		svc.Stop()
 		port++
 	}()
-	<-time.After(2 * time.Second)
+	<-time.After(time.Second)
 
 	test(t)
 }
