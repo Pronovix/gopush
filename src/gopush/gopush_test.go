@@ -417,6 +417,221 @@ func TestTestFunction(t *testing.T) {
 	})
 }
 
+func TestInvalidAdminCredentials(t *testing.T) {
+	testWithServer(startBasicDummyServer, t, func(t *testing.T) {
+		testfunc := func(path, data, message string) {
+			var resp *http.Response
+			var err error
+			if data == "" {
+				resp, err = http.DefaultClient.Get(getPath(path))
+			} else {
+				resp, err = http.DefaultClient.Post(getPath(path), "application/x-www-form-urlencoded", strings.NewReader(data))
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if resp.StatusCode != http.StatusUnauthorized {
+				t.Fatalf("%s enables unauthorized access. Code: %d\n", message, resp.StatusCode)
+			}
+		}
+
+		testfunc("admin", "", "Admin listing panel")
+		testfunc("admin/add", "mail=test@example.com&publickey=", "Admin user creation page")
+		testfunc("admin/remove", "mail=test@example.com", "Admin user remove page")
+	})
+}
+
+func TestInvalidRequestMethods(t *testing.T) {
+	testWithServer(startBasicDummyServer, t, func(t *testing.T) {
+		if resp := postAdmin("admin", "", t); resp.StatusCode != http.StatusMethodNotAllowed {
+			t.Fatalf("POST is allowed on main admin page. Code: %d\n", resp.StatusCode)
+		}
+
+		if resp := getAdmin("admin/add", t); resp.StatusCode != http.StatusMethodNotAllowed {
+			t.Fatalf("GET is allowed on admin user add page. Code %d\n", resp.StatusCode)
+		}
+
+		if resp := getAdmin("admin/remove", t); resp.StatusCode != http.StatusMethodNotAllowed {
+			t.Fatalf("GET is allowed on admin user remove page. Code %d\n", resp.StatusCode)
+		}
+	})
+}
+
+func TestCSRFProtection(t *testing.T) {
+	testWithServer(startBasicDummyServer, t, func(t *testing.T) {
+		if resp := postAdmin("admin/add", "mail=test@example.com&publickey=", t); resp.StatusCode != http.StatusForbidden {
+			t.Fatalf("CSRF attack is possible on admin user add page. Code: %d\n", resp.StatusCode)
+		}
+
+		if resp := postAdmin("admin/remove", "mail=test@example.com", t); resp.StatusCode != http.StatusForbidden {
+			t.Fatalf("CSRF attack is possble on admin user remove page. Code: %d\n", resp.StatusCode)
+		}
+	})
+}
+
+func TestServiceMethodAccepting(t *testing.T) {
+	testWithServer(startBasicDummyServer, t, func(t *testing.T) {
+		testfunc := func(path, message string) {
+			resp, err := http.DefaultClient.Get(getPath(path))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if resp.StatusCode != http.StatusMethodNotAllowed {
+				t.Fatalf("%s accepts non-POST request. Code: %d\n", message, resp.StatusCode)
+			}
+		}
+
+		testfunc("newcenter", "Notification center creation page")
+		testfunc("notify", "Notification sending page")
+		testfunc("removecenter", "Notification center removal page")
+	})
+}
+
+func TestMissingParameters(t *testing.T) {
+	testWithServer(startBasicDummyServer, t, func(*testing.T) {
+		key := testAdminAdd("test@example.com", t)
+
+		if resp := postService("newcenter", "test", key, t); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("Possible to create a notification center without email. Code: %d\n", resp.StatusCode)
+		}
+
+		if resp := postService("notify", "", key, t); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("Possible to send a notification without email. Code: %d\n", resp.StatusCode)
+		}
+
+		if resp := postService("notify?mail=test@example.com", "", key, t); resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("Possible to send a notification to missing center. Code: %d\n", resp.StatusCode)
+		}
+
+		if resp := postService("removecenter", "test", key, t); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("Possible to delete a notification center without email. Code: %d\n", resp.StatusCode)
+		}
+	})
+}
+
+func TestNoSignature(t *testing.T) {
+	testWithServer(startBasicDummyServer, t, func(t *testing.T) {
+		testfunc := func(path, data, message string) {
+			resp, err := http.DefaultClient.Post(getPath(path), "text/plain", strings.NewReader(data))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if resp.StatusCode != http.StatusUnauthorized {
+				t.Fatalf("%s can accept messages without signature. Code: %d\n", message, resp.StatusCode)
+			}
+		}
+
+		testfunc("newcenter", "", "Notification center creation page")
+		testfunc("notify", "", "Notify page")
+		testfunc("removecenter", "", "Notification center removal page")
+		testfunc("test", "", "Test page")
+	})
+}
+
+func TestInvalidSignature(t *testing.T) {
+	testWithServer(startBasicDummyServer, t, func(t *testing.T) {
+		stringpkey, _, err := genKeyPair(1024)
+		if err != nil {
+			t.Fatal(err)
+		}
+		key := stringToPrivateKey(stringpkey)
+		if key == nil {
+			t.Fatalf("Cannot create key.\n")
+		}
+
+		testAdminAdd("test@example.com", t)
+
+		if resp := postService("newcenter?mail=test@example.com", "test", key, t); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("It is possible to create a notification center with invalid signature. Code: %d\n", resp.StatusCode)
+		}
+
+		if resp := postService("notify?mail=test@example.com&center=test", "test", key, t); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("It is possible to send a notification with invalid signature. Code: %d\n", resp.StatusCode)
+		}
+
+		if resp := postService("removecenter?mail=test@example.com", "test", key, t); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("It is possible to remove a notification center with invalid signature. Code: %d\n", resp.StatusCode)
+		}
+
+		if resp := postService("test?mail=test@example.com", "test", key, t); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("It is possible to use the test service with invalid signature. Code: %d\n", resp.StatusCode)
+		}
+	})
+}
+
+func TestInvalidUser(t *testing.T) {
+	testWithServer(startBasicDummyServer, t, func(t *testing.T) {
+		stringpkey, _, err := genKeyPair(1024)
+		if err != nil {
+			t.Fatal(err)
+		}
+		key := stringToPrivateKey(stringpkey)
+		if key == nil {
+			t.Fatalf("Cannot create key.\n")
+		}
+
+		testAdminAdd("test2@example.com", t)
+
+		if resp := postService("newcenter?mail=test@example.com", "test", key, t); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("It is possible to create a notification center with invalid signature. Code: %d\n", resp.StatusCode)
+		}
+
+		if resp := postService("notify?mail=test@example.com&center=test", "test", key, t); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("It is possible to send a notification with invalid signature. Code: %d\n", resp.StatusCode)
+		}
+
+		if resp := postService("removecenter?mail=test@example.com", "test", key, t); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("It is possible to remove a notification center with invalid signature. Code: %d\n", resp.StatusCode)
+		}
+
+		if resp := postService("test?mail=test@example.com", "test", key, t); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("It is possible to use the test service with invalid signature. Code: %d\n", resp.StatusCode)
+		}
+	})
+}
+
+func TestInvalidNotificationCenter(t *testing.T) {
+	testWithServer(startBasicDummyServer, t, func(t *testing.T) {
+		key := testAdminAdd("test@example.com", t)
+
+		if resp := postService("removecenter?mail=test@example.com", "test", key, t); resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("Missing notification center don't send Not Found on deletion. Code: %d\n", resp.StatusCode)
+		}
+
+		if resp := postService("notify?mail=test@example.com&center=test", "", key, t); resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("Missing notification center don't send Not Found on notification. Code: %d\n", resp.StatusCode)
+		}
+	})
+}
+
+func TestHijackOtherUsersAccount(t *testing.T) {
+	testWithServer(startBasicDummyServer, t, func(t *testing.T) {
+		key := testAdminAdd("test@example.com", t)
+		key2 := testAdminAdd("test2@example.com", t)
+
+		if resp := postService("newcenter?mail=test2@example.com", "test", key, t); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("Attempting to create a notification center with invalid credentials does not return Unauthorized. Code: %d\n", resp.StatusCode)
+		}
+
+		postService("newcenter?mail=test2@example.com", "test", key2, t)
+
+		if resp := postService("notify?mail=test2@example.com&center=test", "test", key, t); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("Attempting to send a notification with invalid credentials does not return Unauthorized. Code: %d\n", resp.StatusCode)
+		}
+
+		if resp := postService("removecenter?mail=test2@example.com", "test", key, t); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("Attempting to delete a notification center with invalid credentials does not return Unauthorized. Code: %d\n", resp.StatusCode)
+		}
+
+		if resp := postService("test?mail=test2@example.com", "test", key, t); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("Attempting to use the test service with invalid credentials does not return Unauthorized. Code: %d\n", resp.StatusCode)
+		}
+	})
+}
+
 func TestMySQLFunctional(t *testing.T) {
 	config := getBaseConfig()
 
