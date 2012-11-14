@@ -101,7 +101,7 @@ func startRedirectingDummyServer(t *testing.T) *GoPushService {
 
 func getBaseConfig() Config {
 	return Config{
-		Address:          fmt.Sprintf(":%d", port),
+		Address:          fmt.Sprintf("localhost:%d", port),
 		AdminUser:        adminUser,
 		AdminPass:        adminPass,
 		Timeout:          0,
