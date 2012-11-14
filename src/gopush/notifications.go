@@ -46,7 +46,7 @@ func (svc *GoPushService) checkAuth(r *http.Request, body []byte) bool {
 
 func (svc *GoPushService) handleNewCenter(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		serve404(w)
+		serve405(w)
 		return
 	}
 
@@ -72,7 +72,7 @@ func (svc *GoPushService) handleNewCenter(w http.ResponseWriter, r *http.Request
 
 func (svc *GoPushService) handleNotify(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		serve404(w)
+		serve405(w)
 		return
 	}
 
@@ -102,7 +102,7 @@ func (svc *GoPushService) handleNotify(w http.ResponseWriter, r *http.Request) {
 
 func (svc *GoPushService) handleRemoveCenter(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		serve404(w)
+		serve405(w)
 		return
 	}
 
