@@ -1,5 +1,6 @@
 config.json
 src/code.google.com
+src/github.com
 bin
 pkg
 src/gopush/test/mysql.json

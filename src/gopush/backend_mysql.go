@@ -6,7 +6,7 @@ import (
 
 	"log"
 
-	_ "code.google.com/p/go-mysql-driver/mysql"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 const mysql_create_database = "CREATE TABLE `APIToken` ( " +
